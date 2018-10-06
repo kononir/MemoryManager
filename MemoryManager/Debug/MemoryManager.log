@@ -1,11 +1,15 @@
-﻿Построение начато 09.09.2018 22:51:24.
+﻿Построение начато 06.10.2018 10:32:25.
      1>Проект "D:\My Programs\MemoryManager\MemoryManager\MemoryManager.vcxproj" в узле 2 (целевые объекты build).
      1>InitializeBuildStatus:
-         Создание "Debug\MemoryManager.unsuccessfulbuild", так как было задано "AlwaysCreate".
+         Обращение к "Debug\MemoryManager.unsuccessfulbuild".
        ClCompile:
          Для всех выходных данных обновления не требуется.
          c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"StdAfx.h" /Fp"Debug\MemoryManager.pch" /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt MemoryManager.cpp
          MemoryManager.cpp
+     1>d:\my programs\memorymanager\memorymanager\memorymanager.cpp(205): warning C4700: использована неинициализированная локальная переменная "ptr"
+     1>d:\my programs\memorymanager\memorymanager\memorymanager.cpp(235): warning C4700: использована неинициализированная локальная переменная "curTabCell"
+     1>d:\my programs\memorymanager\memorymanager\memorymanager.cpp(245): warning C4700: использована неинициализированная локальная переменная "nextTabCell"
+     1>d:\my programs\memorymanager\memorymanager\memorymanager.cpp(284): warning C4700: использована неинициализированная локальная переменная "lastTabCell"
        ManifestResourceCompile:
          Для всех выходных данных обновления не требуется.
        Link:
@@ -25,4 +29,4 @@
 
 Построение успешно завершено.
 
-Затраченное время: 00:00:00.87
+Затраченное время: 00:00:00.60

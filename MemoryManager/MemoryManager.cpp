@@ -4,44 +4,48 @@
 #include "stdafx.h"
 #include "stdlib.h"
 
+#define SUCCESSFUL_EXECUTION 0
+#define INVALID_PARAMETERS -1
+#define OUT_OF_BLOCK_RANGE -2
+#define OUT_OF_MEMORY -2
+#define UNKNOW_ERROR 1
+
 typedef char* VA;						// Тип описывающий адрес блока (в ОП)
 
-typedef struct physicalBlock
+typedef struct tableCell
 {
-	long offset;
-	long size;
-	struct physicalBlock* next;
-} physicalBlock;
-
-typedef struct physicalMemory			//ОП
-{
-	VA space;							//собственно, указатель на память
-	long size;
-	physicalBlock* head;
-} physicalMemory;
-
-/*
-
-typedef struct virtualSegment			//виртуальный сегмент
-{
-	int number;							//номер сегмента
-	struct virtualSegment* next;		//указатель на следующий сегмент
-} virtualSegment;
-
-*/
-
-typedef struct segmentsList				//список сегментов
-{
-	int number;							//номер виртуального сегмента (МОЖЕТ ЛУЧШЕ СДЕЛАТЬ НОМЕР ФИЗ.БЛОКА???)
-	VA physAddr;						//указатель на расположение в ОП
+	int segmentNumber;					//номер сегмента процесса
+	VA* physAddr;						//указатель на расположение в памяти
 	long segmentSize;					//размер сегмента
+	long offset;
 	unsigned int modification;			//бит модификации сегмента
 	unsigned int presence;				//бит присутствия сегмента в ОП
-	struct segmentsList* next;			//указатель на следующий элемент
-} segmentsList;
+	struct tableCell* next;				//указатель на следующий сегмент
+} tableCell;
 
-physicalMemory physMem;
-segmentsList* list;
+typedef struct segment					//сегмент
+{
+	int segmentNumber;
+	struct segment* next;
+} segment;
+
+typedef struct physicalMemory			//ОП, Ж/Д, кэш
+{
+	VA* space;							//собственно, указатель на память
+	long size;							//размер
+	segment* head;
+} physicalMemory;
+
+
+
+physicalMemory ram;
+physicalMemory hard;
+physicalMemory cash;
+tableCell* table;
+
+
+
+static int maxSegmentNumber = 0;
 
 
 
@@ -131,11 +135,11 @@ int _init (int n, int szPage);
 
 
 
-int _create_table();
-
-
-
-int _push(VA* data, size_t szPage);
+int _init_physical_memory(int memoryNumber, physicalMemory mem);
+long _take_free_space(VA* ptr, size_t szBlock);
+int _find_table_cell(int segmentNumber, tableCell* tc);
+int _add_new_block(segment* prevSegm, tableCell* prevTC, VA* ptr, size_t szBlock);
+int _find_last_segment(segment* segm);
 
 
 
@@ -146,8 +150,6 @@ int _tmain(int argc, _TCHAR* argv[])
 		int szPage = (int)argv[2];
 
 		_init(n, szPage);
-
-		//FILE *f = fopen("r");
 	}
 	
 	return 0;
@@ -157,132 +159,33 @@ int _tmain(int argc, _TCHAR* argv[])
 
 int _init (int n, int szPage)
 {
-	int errCode, iter;									//errCode - код ошибки
+	int errCode, ramNumber = n * szPage, hardNumber = 65536, cashNumber = 2048;		//errCode - код ошибки
 
-	errCode = _init_physical_memory(n, szPage);			//инициализируем ОП
+	errCode = _init_physical_memory(ramNumber, ram);		//инициализируем ОП
 
-														//инициализируем память под жд
+	_init_physical_memory(hardNumber, hard);		//инициализируем память жд
 
-														//инициализируем память под кэш
-
-	/*errCode = _create_table();							//создаём таблицу
-
-	for(iter = 0; iter < n && errCode == 1; iter++){	//вставляем в таблицу n полей длины szPage
-		errCode = _push(NULL, szPage);
-	}*/
+	_init_physical_memory(cashNumber, cash);		//инициализируем кэш
 
 	return errCode;
 }
 
 
-
-int _init_physical_memory(int n, int szPage)
+int _init_physical_memory(int memoryNumber, physicalMemory mem)
 {
-	int errCode;
+	int errCode, memorySize = memoryNumber * sizeof(VA);
 
-	int memorySize = n * szPage * sizeof(VA);
-	physMem.space = (VA) malloc(memorySize);
+	mem.space = (VA*) malloc(memorySize);
 
-	if(physMem.space == NULL){
+	if(mem.space == NULL){
 		errCode = 1;
+
 	}
 	else{
 		errCode = 0;
-	}
 
-	return errCode;
-}
-
-
-
-int _create_table()											//создание таблицы
-{
-	int errCode;
-
-	table = (segmentTable*) malloc(sizeof(segmentTable));	//выделяем память под таблицу
-
-	if(!table){												//проверка выделения памяти
-		errCode = -1;
-	}
-	else{
-		errCode = 1;
-
-		table -> tableSize = 0;								//в таблице нет элементов
-		table -> head = table -> tail = NULL;				//нет ни первого, ни последного элемента
-	}
-
-	return errCode;
-}
-
-
-
-int _pushTableCell(VA* dataPtr, size_t szPage)  //добавляем ячейку в конец таблицы
-{
-	int errCode;
-
-	segmentTableCell *tmp = (segmentTableCell*) malloc(sizeof(segmentTableCell));	//выделяем память под ячейку таблицы
-
-	if(!tmp){										//проверка выделения памяти
-		errCode = -1;
-	}
-	else{
-		errCode = 1;
-
-		long virtualAddr = 
-
-		segment* segm = (segment*) malloc(sizeof(segment));	//выделяем память под сегмент
-
-		tmp -> segm = segm;							//присваем адрес сегмента
-		tmp -> segmentSize = szPage;				//присваем размер сегмента
-		tmp -> modification = 0;					//сегмент не был изменён
-		tmp -> presence = 0;						//сегмент не присутствует в ОП
-		tmp -> next = NULL;							//новая ячейка ссылается на нулевую ячейку
-		tmp -> prev = table -> tail;				//а также на предыдую ячейку таблицы
-
-		if(table -> head){							//если таблица не пуста
-			table -> tail -> next = tmp;			//ссылаемся на новую ячейку из последней ячейки 
-			table -> tail = tmp;					//и добавляем новую ячейку в конец таблицы
-		}
-		else{										//если таблица пуста
-			table -> head = table -> tail = tmp;	//новая ячейка становится одновременно первой и последней
-		}
-
-		table -> tableSize++;						//увеличиваем рамер таблицы
-	}
-
-	return errCode;
-}
-
-
-
-int _pushSegmentBlock(long virtualAddr, VA* physAddr, virtualSegment* segm)	//добавляем блок в конец сегмента
-{
-	int errCode;
-
-	segmentBlock* blc = (segmentBlock*) malloc(sizeof(segmentBlock));	//выделяем память под блок
-
-	if(!segm){										//проверка выделения памяти
-		errCode = -1;
-	}
-	else{
-		errCode = 1;
-
-		VA* physAddr = (VA*) malloc(sizeof(VA));	//выделяем физ. память
-
-		blc -> virtualAddr = virtualAddr;			//присваем адрес блока сегмента
-		blc -> physAddr = physAddr;					//присваем размер сегмента
-		blc -> next = NULL;							//новая ячейка ссылается на нулевую ячейку
-		blc -> prev = segment -> tail;				//а также на предыдую ячейку таблицы
-
-		if(table -> head){							//если таблица не пуста
-			table -> tail -> next = tmp;			//ссылаемся на новую ячейку из последней ячейки 
-			table -> tail = tmp;					//и добавляем новую ячейку в конец таблицы
-		}
-		else{										//если таблица пуста
-			table -> head = table -> tail = tmp;	//новая ячейка становится одновременно первой и последней
-		}
-
-		table -> tableSize++;						//увеличиваем рамер таблицы
+		mem.head = NULL;
+		mem.size = 0;
 	}
 
 	return errCode;
@@ -292,41 +195,14 @@ int _pushSegmentBlock(long virtualAddr, VA* physAddr, virtualSegment* segm)	//до
 
 int _malloc (VA* ptr, size_t szBlock)
 {
-	ptr = _find_free_space(szBlock);
-	_add_new_block();
-}
-
-
-
-int _add_new_block()
-{
-	
 	int errCode;
 
-	physicalBlock* blc = phys;	//выделяем память под блок
-
-	if(!blc){										//проверка выделения памяти
+	if(szBlock <= 0){
 		errCode = -1;
 	}
 	else{
-		errCode = 1;
-
-		VA* physAddr = (VA*) malloc(sizeof(VA));	//выделяем физ. память
-
-		blc -> virtualAddr = virtualAddr;			//присваем адрес блока сегмента
-		blc -> physAddr = physAddr;					//присваем размер сегмента
-		blc -> next = NULL;							//новая ячейка ссылается на нулевую ячейку
-		blc -> prev = segment -> tail;				//а также на предыдую ячейку таблицы
-
-		if(table -> head){							//если таблица не пуста
-			table -> tail -> next = tmp;			//ссылаемся на новую ячейку из последней ячейки 
-			table -> tail = tmp;					//и добавляем новую ячейку в конец таблицы
-		}
-		else{										//если таблица пуста
-			table -> head = table -> tail = tmp;	//новая ячейка становится одновременно первой и последней
-		}
-
-		table -> tableSize++;						//увеличиваем рамер таблицы
+		VA* ptr;		//OUT
+		errCode = _take_free_space(ptr, szBlock);
 	}
 
 	return errCode;
@@ -334,39 +210,163 @@ int _add_new_block()
 
 
 
-VA* _find_free_space(size_t szBlock)
+long _take_free_space(VA* ptr, size_t szBlock)
 {
-	if(physMem.space == NULL){
-		return NULL;
-	}
-	else{
-		if(physMem.head == NULL){
-			return &physMem.space;
-		}
-		else{
-			physicalBlock* curBlock = physMem.head;
-			physicalBlock* nextBlock = curBlock -> next;
-			int beginOfSpace, endOfSpace, space;
-			bool searchingAnswer = false;
+	int errCode;
+	
+	if(ram.space == NULL) {
+		return UNKNOW_ERROR;
+	} else {
+		if(ram.head == NULL) {
+			ptr = ram.space;		//OUT
 
-			while(curBlock -> next != NULL){
-				beginOfSpace = curBlock -> offset + curBlock -> size;
-				endOfSpace = nextBlock -> offset;
+			errCode = _add_new_block(NULL, NULL, ptr, szBlock);
+
+			if(errCode != SUCCESSFUL_EXECUTION) {
+				return errCode;
+			}
+
+			return errCode;
+		} else {
+			long space, beginOfSpace, endOfSpace;
+
+			segment* curSegm = ram.head;
+			tableCell* curTabCell; 
+			errCode = _find_table_cell(curSegm -> segmentNumber, curTabCell);
+
+			if(errCode != SUCCESSFUL_EXECUTION) {
+				return errCode;
+			}
+
+			while(curSegm -> next != NULL) {
+				segment* nextSegm = curSegm -> next;
+				tableCell* nextTabCell; 
+
+				errCode = _find_table_cell(nextSegm -> segmentNumber, nextTabCell);
+
+				if(errCode != SUCCESSFUL_EXECUTION) {
+					return errCode;
+				}
+
+				beginOfSpace = curTabCell -> segmentSize + curTabCell -> offset;
+				endOfSpace = nextTabCell -> offset;
 				space = endOfSpace - beginOfSpace;
 
-				if(space >= szBlock){
-					return (&physMem.space + beginOfSpace);
+				if(space >= (long) szBlock) {
+					errCode = _find_table_cell(curSegm -> segmentNumber, curTabCell);
+
+					if(errCode != SUCCESSFUL_EXECUTION) {
+						return errCode;
+					}
+
+					ptr = curTabCell -> physAddr;		//OUT
+
+					errCode = _add_new_block(curSegm, curTabCell, ptr, szBlock);
+
+					if(errCode != SUCCESSFUL_EXECUTION) {
+						return errCode;
+					}
+
+					return SUCCESSFUL_EXECUTION;
 				}
+
+				curSegm = nextSegm;
 			}
 
-			space = physMem.size - beginOfSpace;
+			beginOfSpace = curTabCell -> segmentSize + curTabCell -> offset;
+			endOfSpace = ram.size;
+			space = endOfSpace - beginOfSpace;
 
-			if(space >= szBlock){
-				return (&physMem.space + beginOfSpace);
-			}
-			else{
-				return NULL;
+			if(space >= (long) szBlock) {
+				segment* lastSegm = curSegm;
+				tableCell* lastTabCell;
+
+				errCode = _find_table_cell(lastSegm -> segmentNumber, lastTabCell);
+
+				if(errCode != SUCCESSFUL_EXECUTION) {
+					return errCode;
+				}
+
+				ptr = lastTabCell -> physAddr + lastTabCell -> segmentSize;		//OUT
+
+				errCode = _add_new_block(curSegm, curTabCell, ptr, szBlock);
+
+				if(errCode != SUCCESSFUL_EXECUTION) {
+					return errCode;
+				}
+
+				return SUCCESSFUL_EXECUTION;
+			} else {
+				return OUT_OF_MEMORY;
 			}
 		}
 	}
+}
+
+
+
+int _find_table_cell(int segmentNumber, tableCell* tc)
+{
+	tc = table;
+
+	do {
+		if(tc -> segmentNumber == segmentNumber) {
+			return SUCCESSFUL_EXECUTION;
+		}
+
+		tc = tc -> next;
+	} while(tc != NULL);
+
+	return INVALID_PARAMETERS;
+}
+
+
+
+int _add_new_block(segment* prevSegm, tableCell* prevTC, VA* ptr, size_t szBlock)
+{
+	tableCell* tc = (tableCell*) malloc(sizeof(tableCell));
+	segment* segm = (segment*) malloc(sizeof(segment));
+
+	if(tc == NULL || segm == NULL) {
+		return UNKNOW_ERROR;
+	}
+
+	tc -> physAddr = ptr;
+	tc -> modification = 0;
+	tc -> presence = 1;
+	tc -> next = NULL;
+	tc -> segmentSize = szBlock;
+
+	if(prevTC != NULL) {
+		prevTC -> next = tc;
+	}
+
+	segm -> segmentNumber = tc -> segmentNumber = maxSegmentNumber++;
+	segm -> next = NULL;
+
+	if(prevSegm != NULL) {	//проверяем, первый ли это сегмент или нет
+		prevSegm -> next = segm;	//если да, то ссылаемся с предыдущего сегмента на текущий
+		tc -> offset = prevTC -> segmentSize;	//устанавливаем смещение текущего сегмента, как размер предыдущего
+	} else {
+		tc -> offset = 0;	//если нет, то устанавливаем смещение в 0
+	}
+
+	return SUCCESSFUL_EXECUTION;
+}
+
+
+
+int _find_last_segment(segment* segm) 
+{
+	segm = ram.head;
+
+	while(segm != NULL) {
+		if(segm -> next == NULL) {
+			return SUCCESSFUL_EXECUTION;
+		}
+
+		segm = segm -> next;
+	}
+
+	return UNKNOW_ERROR;
 }
