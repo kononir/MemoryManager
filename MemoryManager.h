@@ -11,7 +11,7 @@ typedef char* VA;						// Тип описывающий адрес блока
 typedef struct tableCell
 {
 	int segmentNumber;					//номер сегмента процесса
-	VA* physAddr;						//указатель на расположение в памяти
+	VA physAddr;						//указатель на расположение в памяти
 	long segmentSize;					//размер сегмента
 	long offset;						//смещение относительно начала памяти
 	unsigned int modification;			//бит модификации сегмента
@@ -35,7 +35,7 @@ typedef struct segment					//сегмент
 
 typedef struct physicalMemory			//ОП, Ж/Д, кэш
 {
-	VA* space;							//собственно, указатель на память
+	VA space;							//собственно, указатель на память
 	long size;							//размер
 	segment* head;						//указатель на первый сегмент
 	segment* tail;						//указатель на последний сегмент
@@ -131,5 +131,20 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer);
 	@retval	1	неизвестная ошибка
  **/
 int _init (int n, int szPage);
+
+int _init_physical_memory(int memorySize, physicalMemory* mem);
+int _destroy(physicalMemory* mem);
+
+int _take_free_space(VA* ptr, size_t szBlock);
+int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock);
+int _add_table_cell(tableCell* prevTC, tableCell* nextTC, VA* ptr, size_t szBlock);
+int _add_segment(segment* prevSegm, segment* nextSegm);
+
+int _find_table_cell_by_ptr(tableCell** tc, VA ptr);
+int _find_table_cell_by_segment_number(tableCell** tc, int segmentNumber);
+int _find_segment_by_segment_number(segment** segm, int segmNumber);
+
+int _free_table_cell(tableCell** tc);
+int _free_segment(segment** segm);
 
 #endif MEMORYMANAGER_H
