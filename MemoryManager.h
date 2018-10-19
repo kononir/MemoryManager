@@ -6,14 +6,14 @@
 #define OUT_OF_MEMORY -2
 #define UNKNOW_ERROR 1
 
-typedef char* VA;						// Тип описывающий адрес блока
+typedef char* VA;						// Тип описывающий адрес блока в виртуальном адресном пространстве (ВАП)
+typedef char* PA;						// Тип описывающий адрес блока в ОП
 
 typedef struct tableCell
 {
 	int segmentNumber;					//номер сегмента процесса
-	VA physAddr;						//указатель на расположение в памяти
+	PA physAddr;						//указатель на расположение в ОП
 	long segmentSize;					//размер сегмента
-	long offset;						//смещение относительно начала памяти
 	unsigned int modification;			//бит модификации сегмента
 	unsigned int presence;				//бит присутствия сегмента в ОП
 	struct tableCell* next;				//указатель на следующую ячейку
@@ -29,21 +29,23 @@ typedef struct segmentTable
 typedef struct segment					//сегмент
 {
 	int segmentNumber;					//номер сегмента процесса
-	struct segment* next;
-	struct segment* prev;
+	VA virtAddr;						//указатель на расположение в ВАП
+	long segmentSize;					//размер сегмента
+	long offset;						//смещение относительно начала ВАП
+	struct segment* next;				//указатель на следующий сегмент
+	struct segment* prev;				//указатель на предыдущий сегмент
 } segment;
 
-typedef struct physicalMemory			//ОП, Ж/Д, кэш
+typedef struct virtualAddressSpace		//ОП, Ж/Д
 {
-	VA space;							//собственно, указатель на память
-	long size;							//размер
+	VA space;							//собственно, указатель на начало ВАП
+	long ramSize;						//размер ВАП ОП
+	long hardSize;						//размер ВАП Ж/Д
 	segment* head;						//указатель на первый сегмент
 	segment* tail;						//указатель на последний сегмент
-} physicalMemory;
+} virtualAddressSpace;
 
-physicalMemory ram;
-physicalMemory hard;
-physicalMemory cash;
+virtualAddressSpace vas;
 segmentTable table;
 
 static int maxSegmentNumber = 0;
@@ -132,17 +134,16 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer);
  **/
 int _init (int n, int szPage);
 
-int _init_physical_memory(int memorySize, physicalMemory* mem);
-int _destroy(physicalMemory* mem);
+int _init_virtual_address_space(virtualAddressSpace* vas, long vasSize);
+int _destroy(virtualAddressSpace* vas);
 
 int _take_free_space(VA* ptr, size_t szBlock);
 int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock);
-int _add_table_cell(tableCell* prevTC, tableCell* nextTC, VA* ptr, size_t szBlock);
-int _add_segment(segment* prevSegm, segment* nextSegm);
+int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock);
+int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock);
 
-int _find_table_cell_by_ptr(tableCell** tc, VA ptr);
+int _find_segment_by_ptr(segment** segm, VA ptr);
 int _find_table_cell_by_segment_number(tableCell** tc, int segmentNumber);
-int _find_segment_by_segment_number(segment** segm, int segmNumber);
 
 int _free_table_cell(tableCell** tc);
 int _free_segment(segment** segm);

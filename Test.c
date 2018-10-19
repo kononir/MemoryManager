@@ -195,7 +195,7 @@ int test_malloc_without_init(void) {
 	int errCode;
 	int szBlock = 20;
 
-	_destroy(&ram);
+	_destroy(&vas);
 
 	errCode = _malloc(&block, szBlock);
 

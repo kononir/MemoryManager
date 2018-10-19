@@ -1,12 +1,16 @@
-﻿Построение начато 13.10.2018 22:47:04.
+﻿Построение начато 19.10.2018 11:46:51.
      1>Проект "D:\My Programs\MemoryManager\MemoryManager.vcxproj" в узле 2 (целевые объекты build).
      1>InitializeBuildStatus:
          Создание "Debug\MemoryManager.unsuccessfulbuild", так как было задано "AlwaysCreate".
        ClCompile:
-         c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt MemoryManager.c Test.c
-         Test.c
+         c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt MemoryManager.c
          MemoryManager.c
-         Создание кода...
+     1>MemoryManager.c(14): warning C4020: _init_virtual_address_space: слишком много фактических параметров
+     1>MemoryManager.c(22): warning C4029: объявленный список формальных параметров отличается от объявления
+     1>MemoryManager.c(81): warning C4020: _take_free_space: слишком много фактических параметров
+     1>MemoryManager.c(83): warning C4020: _take_free_space: слишком много фактических параметров
+     1>MemoryManager.c(93): warning C4029: объявленный список формальных параметров отличается от объявления
+     1>d:\my programs\memorymanager\memorymanager.c(425): warning C4715: _write: значение возвращается не при всех путях выполнения
        ManifestResourceCompile:
          Для всех выходных данных обновления не требуется.
        Link:
@@ -26,4 +30,4 @@
 
 Построение успешно завершено.
 
-Затраченное время: 00:00:01.16
+Затраченное время: 00:00:00.59

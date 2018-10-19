@@ -3,47 +3,36 @@
 
 int _init (int n, int szPage)
 {
-	int errCode, ramSize, hardSize, cashSize;
+	int errCode, ramSize, hardSize;
 
 	if (n <= 0 || szPage <= 0) {
 		return INVALID_PARAMETERS;
 	}
 
-	ramSize = n * szPage, hardSize = 65536, cashSize = 2048;
+	ramSize = n * szPage, hardSize = 65536;
 
-	errCode = _init_physical_memory(ramSize, &ram);
-
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
-
-	errCode = _init_physical_memory(hardSize, &hard);
-
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
-
-	errCode = _init_physical_memory(cashSize, &cash);
+	errCode = _init_virtual_address_space(&vas, ramSize, hardSize);
 
 	return errCode;
 }
 
 
 
-int _init_physical_memory(int memorySize, physicalMemory* mem)
+int _init_virtual_address_space(virtualAddressSpace* vas, long ramSize, long hardSize)
 {
-	if (mem -> space != NULL) {
-		_destroy(mem);
+	if (vas -> space != NULL) {
+		_destroy(vas);
 	}
 
-	mem -> space = (VA) malloc(memorySize);
+	vas -> space = (VA) malloc(ramSize + hardSize);
 
-	if (mem -> space == NULL){
+	if (vas -> space == NULL){
 		return UNKNOW_ERROR;
 	} else {
-		mem -> head = NULL;
-		mem -> tail = NULL;
-		mem -> size = memorySize;
+		vas -> head = NULL;
+		vas -> tail = NULL;
+		vas -> hardSize = hardSize;
+		vas -> ramSize = ramSize;
 
 		return SUCCESSFUL_EXECUTION;
 	}
@@ -51,27 +40,29 @@ int _init_physical_memory(int memorySize, physicalMemory* mem)
 
 
 
-int _destroy(physicalMemory* mem)
+int _destroy(virtualAddressSpace* vas)
 {
-	tableCell* tc = table.head;
+	segment* segm = vas -> head;
 	int errCode;
 
-	while (tc != NULL) {
-		tableCell* nextTC = tc -> next;
+	while (segm != NULL) {
+		segment* nextSegm = segm -> next;
 
-		errCode = _free(tc -> physAddr);
+		errCode = _free(segm -> virtAddr);
 
 		if (errCode != SUCCESSFUL_EXECUTION) {
 			return errCode;
 		}
 
-		tc = nextTC;
+		segm = nextSegm;
 	} 
 
-	if (mem -> space != NULL) {
-		free(mem -> space);
-		mem -> space = NULL;
+	if (vas -> space != NULL) {
+		free(vas -> space);
+		vas -> space = NULL;
 	}
+
+	maxSegmentNumber = 0;
 
 	return SUCCESSFUL_EXECUTION;
 }
@@ -84,10 +75,13 @@ int _malloc (VA* ptr, size_t szBlock)
 
 	if ((int)szBlock <= 0){
 		return INVALID_PARAMETERS;
-	} else if (ram.space == NULL) {
+	} else if (vas.space == NULL) {
 		return UNKNOW_ERROR;
 	} else {
-		errCode = _take_free_space(ptr, szBlock);
+		errCode = _take_free_space(ptr, szBlock, 0, vas.ramSize);
+		if (errCode == OUT_OF_MEMORY) {
+			errCode = _take_free_space(ptr, szBlock, vas.ramSize, vas.m);
+		}
 	}
 
 	return errCode;
@@ -95,61 +89,45 @@ int _malloc (VA* ptr, size_t szBlock)
 
 
 
-int _take_free_space(VA* ptr, size_t szBlock)
+int _take_free_space(VA* ptr, size_t szBlock, long begin, long end)
 {
 	int errCode;
 	long space, beginOfSpace, endOfSpace;
 
-	if(ram.head == NULL) {
-		beginOfSpace = 0;
-		endOfSpace = ram.size;
-		space = endOfSpace - beginOfSpace;
+	if (end - begin < (long) szBlock) {
+		return OUT_OF_MEMORY;
+	}
 
-		if (space >= (long) szBlock) {
-			(*ptr) = ram.space;		//OUT
+	if (vas.head == NULL) {
+		(*ptr) = vas.space;		//OUT
 
-			errCode = _add_new_block(NULL, NULL, ptr, szBlock);
+		errCode = _add_new_block(NULL, NULL, ptr, szBlock);
 
-			return errCode;
-		}
+		return errCode;
 	} else {
-		segment* curSegm = ram.head;
-		tableCell* curTabCell = NULL;
+		segment* curSegm = vas.head;
 
-		errCode = _find_table_cell_by_segment_number(&curTabCell, curSegm -> segmentNumber);
-
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
-
-		beginOfSpace = 0;
-		endOfSpace = curTabCell -> offset;
+		beginOfSpace = begin;
+		endOfSpace = curSegm -> offset;
 		space = endOfSpace - beginOfSpace;
 
 		if (space >= (long) szBlock) {
-			(*ptr) = ram.space;		//OUT
+			(*ptr) = vas.space;		//OUT
 
 			errCode = _add_new_block(NULL, curSegm, ptr, szBlock);
 
 			return errCode;
 		}
 			
-		while(curSegm -> next != NULL) {
+		while(curSegm -> next != NULL && curSegm -> next -> offset < end) {
 			segment* nextSegm = curSegm -> next;
-			tableCell* nextTabCell; 
 
-			errCode = _find_table_cell_by_segment_number(&nextTabCell, nextSegm -> segmentNumber);
-
-			if(errCode != SUCCESSFUL_EXECUTION) {
-				return errCode;
-			}
-
-			beginOfSpace = curTabCell -> segmentSize + curTabCell -> offset;
-			endOfSpace = nextTabCell -> offset;
+			beginOfSpace = curSegm -> segmentSize + curSegm -> offset;
+			endOfSpace = nextSegm -> offset;
 			space = endOfSpace - beginOfSpace;
 
 			if (space >= (long) szBlock) {
-				(*ptr) = curTabCell -> physAddr + curTabCell -> segmentSize;		//OUT
+				(*ptr) = curSegm -> virtAddr + curSegm -> segmentSize;		//OUT
 
 				errCode = _add_new_block(curSegm, nextSegm, ptr, szBlock);
 
@@ -157,19 +135,14 @@ int _take_free_space(VA* ptr, size_t szBlock)
 			}
 
 			curSegm = nextSegm;
-			errCode = _find_table_cell_by_segment_number(&curTabCell, curSegm -> segmentNumber);
-
-			if(errCode != SUCCESSFUL_EXECUTION) {
-				return errCode;
-			}
 		}
 
-		beginOfSpace = curTabCell -> segmentSize + curTabCell -> offset;
-		endOfSpace = ram.size;
+		beginOfSpace = curSegm -> segmentSize + curSegm -> offset;
+		endOfSpace = end;
 		space = endOfSpace - beginOfSpace;
 
 		if (space >= (long) szBlock) {
-			(*ptr) = curTabCell -> physAddr + curTabCell -> segmentSize;		//OUT
+			(*ptr) = curSegm -> virtAddr + curSegm -> segmentSize;		//OUT
 
 			errCode = _add_new_block(curSegm, NULL, ptr, szBlock);
 
@@ -178,23 +151,6 @@ int _take_free_space(VA* ptr, size_t szBlock)
 	}
 
 	return OUT_OF_MEMORY;
-}
-
-
-
-int _find_table_cell_by_segment_number(tableCell** tc, int segmNumber)
-{
-	(*tc) = table.head;
-
-	while ((*tc) != NULL) {
-		if ((*tc) -> segmentNumber == segmNumber) {
-			return SUCCESSFUL_EXECUTION;
-		}
-
-		(*tc) = (*tc) -> next;
-	}
-
-	return INVALID_PARAMETERS;
 }
 
 
@@ -221,13 +177,13 @@ int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock
 		}
 	}
 
-	errCode = _add_table_cell(prevTC, nextTC, ptr, szBlock);
+	errCode = _add_table_cell(prevTC, nextTC, szBlock);
 
 	if(errCode != SUCCESSFUL_EXECUTION) {
 		return errCode;
 	}
 
-	errCode = _add_segment(prevSegm, nextSegm);
+	errCode = _add_segment(prevSegm, nextSegm, ptr, szBlock);
 
 	maxSegmentNumber++;
 
@@ -236,14 +192,19 @@ int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock
 
 
 
-int _add_table_cell(tableCell* prevTC, tableCell* nextTC, VA* ptr, size_t szBlock) {
+int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) {
 	tableCell* tc = (tableCell*) malloc(sizeof(tableCell));
 
 	if (tc == NULL) {
 		return UNKNOW_ERROR;
 	}
 
-	tc -> physAddr = *ptr;
+	tc -> physAddr = (VA) malloc((long)szBlock);
+
+	if (tc -> physAddr == NULL) {
+		return UNKNOW_ERROR;
+	}
+
 	tc -> modification = 0;
 	tc -> presence = 1;
 	tc -> segmentSize = szBlock;
@@ -255,16 +216,12 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, VA* ptr, size_t szBloc
 
 		nextTC -> prev = tc;
 		prevTC -> next = tc;
-
-		tc -> offset = prevTC -> segmentSize + prevTC -> offset;
 	} else if (prevTC == NULL && nextTC == NULL) {
 		tc -> next = NULL;
 		tc -> prev = NULL;
 
 		table.head = tc;
 		table.tail = tc;
-
-		tc -> offset = 0;
 	} else if (prevTC == NULL) {
 		tc -> prev = NULL;
 		tc -> next = nextTC;
@@ -272,8 +229,6 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, VA* ptr, size_t szBloc
 		nextTC -> prev = tc;
 
 		table.head = tc;
-
-		tc -> offset = 0;
 	} else if (nextTC == NULL) {
 		tc -> prev = prevTC;
 		tc -> next = NULL;
@@ -281,8 +236,6 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, VA* ptr, size_t szBloc
 		prevTC -> next = tc;
 
 		table.tail = tc;
-
-		tc -> offset = prevTC -> segmentSize + prevTC -> offset;
 	}
 
 	return SUCCESSFUL_EXECUTION;
@@ -290,14 +243,16 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, VA* ptr, size_t szBloc
 
 
 
-int _add_segment(segment* prevSegm, segment* nextSegm) {
+int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock) {
 	segment* segm = (segment*) malloc(sizeof(segment));
 
 	if (segm == NULL) {
 		return UNKNOW_ERROR;
 	}
 
+	segm -> virtAddr = (*ptr);
 	segm -> segmentNumber = maxSegmentNumber;
+	segm -> segmentSize = szBlock;
 
 	if (prevSegm != NULL && nextSegm != NULL) {
 		segm -> prev = prevSegm;
@@ -305,26 +260,34 @@ int _add_segment(segment* prevSegm, segment* nextSegm) {
 
 		prevSegm -> next = segm;
 		nextSegm -> prev = segm;
+
+		segm -> offset = prevSegm -> segmentSize + prevSegm -> offset;
 	} else if (prevSegm == NULL && nextSegm == NULL) {
 		segm -> next = NULL;
 		segm -> prev = NULL;
 
-		ram.head = segm;
-		ram.tail = segm;
+		vas.head = segm;
+		vas.tail = segm;
+
+		segm -> offset = 0;
 	} else if (prevSegm == NULL) {
 		segm -> prev = NULL;
 		segm -> next = nextSegm;
 
 		nextSegm -> prev = segm;
 
-		ram.head = segm;
+		vas.head = segm;
+
+		segm -> offset = 0;
 	} else if (nextSegm == NULL) {
 		segm -> prev = prevSegm;
 		segm -> next = NULL;
 
 		prevSegm -> next = segm;
 
-		ram.tail = segm;
+		vas.tail = segm;
+
+		segm -> offset = prevSegm -> segmentSize + prevSegm -> offset;
 	}
 
 	return SUCCESSFUL_EXECUTION;
@@ -338,12 +301,12 @@ int _free(VA ptr)
 	segment* segm = NULL;
 	int errCode;
 
-	errCode = _find_table_cell_by_ptr(&tc, ptr);
+	errCode = _find_segment_by_ptr(&segm, ptr);
 	if (errCode != SUCCESSFUL_EXECUTION) {
 		return errCode;
 	}
 
-	errCode = _find_segment_by_segment_number(&segm, tc -> segmentNumber);
+	errCode = _find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
 	if (errCode != SUCCESSFUL_EXECUTION) {
 		return errCode;
 	}
@@ -360,15 +323,15 @@ int _free(VA ptr)
 
 
 
-int _find_table_cell_by_ptr(tableCell** tc, VA ptr) 
+int _find_segment_by_ptr(segment** segm, VA ptr) //необходимо улучшить для использования в _write и _read
 {
-	(*tc) = table.head;
+	(*segm) = vas.head;
 
-	while ((*tc) != NULL) {
-		if ((*tc) -> physAddr == ptr) {
+	while ((*segm) != NULL) {
+		if ((*segm) -> virtAddr == ptr) {
 			return SUCCESSFUL_EXECUTION;
 		} else {
-			(*tc) = (*tc) -> next;
+			(*segm) = (*segm) -> next;
 		}
 	}
 
@@ -377,16 +340,16 @@ int _find_table_cell_by_ptr(tableCell** tc, VA ptr)
 
 
 
-int _find_segment_by_segment_number(segment** segm, int segmNumber)
+int _find_table_cell_by_segment_number(tableCell** tc, int segmNumber)
 {
-	(*segm) = ram.head;
+	(*tc) = table.head;
 
-	while ((*segm) != NULL) {
-		if ((*segm) -> segmentNumber == segmNumber) {
+	while ((*tc) != NULL) {
+		if ((*tc) -> segmentNumber == segmNumber) {
 			return SUCCESSFUL_EXECUTION;
 		}
 
-		(*segm) = (*segm) -> next;
+		(*tc) = (*tc) -> next;
 	}
 
 	return INVALID_PARAMETERS;
@@ -431,14 +394,14 @@ int _free_segment(segment** segm)
 		prevSegm -> next = nextSegm;
 		nextSegm -> prev = prevSegm;
 	} else if (prevSegm == NULL && nextSegm == NULL) {
-		ram.head = NULL;
-		ram.tail = NULL;
+		vas.head = NULL;
+		vas.tail = NULL;
 	} else if (prevSegm == NULL) {
 		nextSegm -> prev = NULL;
-		ram.head = nextSegm;
+		vas.head = nextSegm;
 	} else if (nextSegm == NULL) {
 		prevSegm -> next = NULL;
-		ram.tail = prevSegm;
+		vas.tail = prevSegm;
 	}	
 
 	free((*segm));
@@ -446,4 +409,17 @@ int _free_segment(segment** segm)
 	(*segm) = NULL;
 
 	return SUCCESSFUL_EXECUTION;
+}
+
+
+
+int _write (VA ptr, void* pBuffer, size_t szBuffer) 
+{
+	long offset = vas.space - ptr;
+
+	if(offset < 0 || offset > vas.size) {
+		return INVALID_PARAMETERS;
+	}
+
+
 }
