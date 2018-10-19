@@ -41,6 +41,8 @@ typedef struct virtualAddressSpace		//ОП, Ж/Д
 	VA space;							//собственно, указатель на начало ВАП
 	long ramSize;						//размер ВАП ОП
 	long hardSize;						//размер ВАП Ж/Д
+	long ramFree;						//оставшееся свободное место ВАП ОП
+	long hardFree;						//оставшееся свободное место ВАП Ж/Д
 	segment* head;						//указатель на первый сегмент
 	segment* tail;						//указатель на последний сегмент
 } virtualAddressSpace;
@@ -134,7 +136,7 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer);
  **/
 int _init (int n, int szPage);
 
-int _init_virtual_address_space(virtualAddressSpace* vas, long vasSize);
+int _init_virtual_address_space(virtualAddressSpace* vas, long ramSize, long hardSize);
 int _destroy(virtualAddressSpace* vas);
 
 int _take_free_space(VA* ptr, size_t szBlock);

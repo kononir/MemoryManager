@@ -223,23 +223,6 @@ int test_malloc_one_block(void) {
 	}
 }
 
-int test_malloc_one_block_out_of_memory(void) {
-	VA block = NULL;
-
-	int errCode;
-	int n = 9, szPage = 2, szBlock = 30;
-
-	_init(n, szPage);
-
-	errCode = _malloc(&block, szBlock);
-
-	if (errCode != OUT_OF_MEMORY) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
-}
-
 int test_malloc_two_blocks(void) {
 	VA block1 = NULL;
 	VA block2 = NULL;
@@ -253,25 +236,6 @@ int test_malloc_two_blocks(void) {
 	errCode = _malloc(&block2, szBlock);
 
 	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
-}
-
-int test_malloc_two_blocks_out_of_memory(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-
-	int errCode;
-	int n = 10, szPage = 5, szBlock = 30;
-
-	_init(n, szPage);
-
-	_malloc(&block1, szBlock);
-	errCode = _malloc(&block2, szBlock);
-
-	if (errCode != OUT_OF_MEMORY) {
 		return TEST_NOT_PASSED;
 	} else {
 		return TEST_PASSED;
@@ -294,28 +258,6 @@ int test_malloc_three_blocks(void) {
 	errCode = _malloc(&block3, szBlock3);
 
 	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
-}
-
-int test_malloc_three_blocks_out_of_memory(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	VA block3 = NULL;
-
-	int errCode;
-	int n = 10, szPage = 4, szBlock1And2 = 20, szBlock3 = 50;
-
-	_init(n, szPage);
-
-	_malloc(&block1, szBlock1And2);
-	_malloc(&block2, szBlock1And2);
-	_free(block1);
-	errCode = _malloc(&block3, szBlock3);
-
-	if (errCode != OUT_OF_MEMORY) {
 		return TEST_NOT_PASSED;
 	} else {
 		return TEST_PASSED;
@@ -346,28 +288,56 @@ int test_malloc_four_blocks(void) {
 	}
 }
 
-int test_malloc_four_blocks_out_of_memory(void) {
+int test_malloc_two_blocks_with_hard(void) {
 	VA block1 = NULL;
 	VA block2 = NULL;
-	VA block3 = NULL;
-	VA block4 = NULL;
 
 	int errCode;
-	int n = 20, szPage = 3, szBlock12AND3 = 20, szBlock4 = 30;
+	int n = 15, szPage = 2, szBlock = 20;
 
 	_init(n, szPage);
 
-	_malloc(&block1, szBlock12AND3);
-	_malloc(&block2, szBlock12AND3);
-	_malloc(&block3, szBlock12AND3);
-	_free(block2);
-	errCode = _malloc(&block4, szBlock4);
+	_malloc(&block1, szBlock);
+	errCode = _malloc(&block2, szBlock);
+
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}
+
+int test_malloc_ram_out_of_memory(void) {
+	VA block = NULL;
+
+	int errCode;
+	int n = 9, szPage = 2, szBlock = 30;
+
+	_init(n, szPage);
+
+	errCode = _malloc(&block, szBlock);
 
 	if (errCode != OUT_OF_MEMORY) {
 		return TEST_NOT_PASSED;
 	} else {
 		return TEST_PASSED;
 	}
+}
+
+int test_malloc_hard_out_of_memory(void) {
+	int errCode;
+	int n = 1000, szPage = 10;
+
+	_init(n, szPage);
+
+	do {
+		VA block = NULL;
+		int szBlock = 10000;
+
+		errCode = _malloc(&block, szBlock);
+	} while (errCode != OUT_OF_MEMORY);	
+
+	return TEST_PASSED;
 }
 
 int test_free_invalid_parameters(void) {
@@ -460,6 +430,85 @@ int test_free_middle(void) {
 	_malloc(&block3, szBlock);
 
 	errCode = _free(block2);
+
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}
+
+int test_write_without_malloc(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+
+	errCode = _write(block, data, dataSize);
+
+	if (errCode != INVALID_PARAMETERS) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}
+
+int test_write_out_of_vas_bounds(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+	_malloc(&block, szBlock);
+
+	errCode = _write(block - 1, data, dataSize);
+
+	if (errCode != INVALID_PARAMETERS) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}
+
+int test_write_out_of_block_range(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 10;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+	_malloc(&block, szBlock);
+
+	errCode = _write(block + 6, data, dataSize);
+
+	if (errCode != OUT_OF_BLOCK_RANGE) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}
+
+int test_write_data_in_block(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+	_malloc(&block, szBlock);
+
+	errCode = _write(block, data, dataSize);
 
 	if (errCode != SUCCESSFUL_EXECUTION) {
 		return TEST_NOT_PASSED;
