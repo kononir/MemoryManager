@@ -516,3 +516,72 @@ int test_write_data_in_block(void) {
 		return TEST_PASSED;
 	}
 }
+
+int test_write_data_with_loading_one_block_to_free_space(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 3, szBlock = 40;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+	_malloc(&block1, szBlock);
+	_malloc(&block2, szBlock);
+	_free(block1);
+
+	errCode = _write(block2, data, dataSize);
+
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}
+
+int test_write_data_with_uloading_one_block(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 3, szBlock = 40;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+	_malloc(&block1, szBlock);
+	_malloc(&block2, szBlock);
+
+	errCode = _write(block2, data, dataSize);
+
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}
+
+int test_write_data_with_uloading_many_blocks(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
+	VA block3 = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 2, szBlock1And2 = 20, szBlock3 = 40;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+	_malloc(&block1, szBlock1And2);
+	_malloc(&block2, szBlock1And2);
+	_malloc(&block3, szBlock3);
+
+	errCode = _write(block3, data, dataSize);
+
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return TEST_NOT_PASSED;
+	} else {
+		return TEST_PASSED;
+	}
+}

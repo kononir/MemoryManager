@@ -1,10 +1,13 @@
-﻿Построение начато 19.10.2018 23:36:33.
+﻿Построение начато 20.10.2018 8:48:11.
      1>Проект "D:\My Programs\MemoryManager\MemoryManager.vcxproj" в узле 2 (целевые объекты build).
      1>InitializeBuildStatus:
          Создание "Debug\MemoryManager.unsuccessfulbuild", так как было задано "AlwaysCreate".
        ClCompile:
-         c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt Test.c
+         c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt MemoryManager.c Test.c
          Test.c
+         MemoryManager.c
+         Создание кода...
+     1>d:\my programs\memorymanager\memorymanager.c(482): warning C4715: _free_space_to_load_segment: значение возвращается не при всех путях выполнения
        ManifestResourceCompile:
          Для всех выходных данных обновления не требуется.
        Link:
@@ -24,4 +27,4 @@
 
 Построение успешно завершено.
 
-Затраченное время: 00:00:00.59
+Затраченное время: 00:00:01.05

@@ -22,7 +22,10 @@ int test_init_invalid_parameters(void),
 	test_write_without_malloc(void),
 	test_write_out_of_vas_bounds(void),
 	test_write_out_of_block_range(void),
-	test_write_data_in_block(void);
+	test_write_data_in_block(void),
+	test_write_data_with_loading_one_block_to_free_space(void),
+	test_write_data_with_uloading_one_block(void),
+	test_write_data_with_uloading_many_blocks(void);
 
 int (*tests[])(void) = {
 	test_init_invalid_parameters,
@@ -44,7 +47,10 @@ int (*tests[])(void) = {
 	test_write_without_malloc,
 	test_write_out_of_vas_bounds,
 	test_write_out_of_block_range,
-	test_write_data_in_block
+	test_write_data_in_block,
+	test_write_data_with_loading_one_block_to_free_space,
+	test_write_data_with_uloading_one_block,
+	test_write_data_with_uloading_many_blocks
 };
 
 #endif TEST_H

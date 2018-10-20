@@ -20,7 +20,7 @@ typedef struct tableCell
 	struct tableCell* prev;				//указатель на предыдущую €чейку
 } tableCell;
 
-typedef struct segmentTable
+typedef struct segmentTable				//таблица сегментов
 {
 	tableCell* head;					//указатель на начало таблицы
 	tableCell* tail;					//указатель на конец таблицы
@@ -149,5 +149,9 @@ int _find_table_cell_by_segment_number(tableCell** tc, int segmentNumber);
 
 int _free_table_cell(tableCell** tc);
 int _free_segment(segment** segm);
+
+int _free_space_to_load_segment(segment** segm);
+void _load_segment_to_ram(tableCell** tc);
+void _load_segment_to_hard_drive(tableCell** tc);
 
 #endif MEMORYMANAGER_H

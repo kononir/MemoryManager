@@ -394,10 +394,12 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 {
 	segment* segm;
 	tableCell* tc;
-	long offsetInSegm = ptr - vas.space, vasSize = vas.ramSize + vas.hardSize;
+	long offset = ptr - vas.space;
+	long vasSize = vas.ramSize + vas.hardSize;
+	long offsetInSegm;
 	int errCode;
 
-	if (offsetInSegm < 0 || offsetInSegm >= vasSize || ptr == NULL) {
+	if (offset < 0 || offset >= vasSize || ptr == NULL) {
 		return INVALID_PARAMETERS;
 	}
 
@@ -411,17 +413,110 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 		return errCode;
 	}
 
+	offsetInSegm = ptr - segm -> virtAddr;
+
 	if ((long) szBuffer > segm -> segmentSize - offsetInSegm) {
 		return OUT_OF_BLOCK_RANGE;
 	}
 
 	if (tc -> presence == 0) {
-		//загрузка сегмента с Ж/Д в ОП
+		errCode = _free_space_to_load_segment(&segm); //загрузка сегмента с Ж/Д в ОП
+		if (errCode != SUCCESSFUL_EXECUTION) {
+			return errCode;
+		}
+
+		memcpy(tc -> physAddr + offsetInSegm, (PA) pBuffer, szBuffer);
+
+		tc -> modification = 1;
 	} else {
 		memcpy(tc -> physAddr + offsetInSegm, (PA) pBuffer, szBuffer);
+
+		tc -> modification = 1;
 	}
 
 	return SUCCESSFUL_EXECUTION;
+}
+
+
+
+int _free_space_to_load_segment(segment** segm) 
+{
+	tableCell* tc = NULL;
+	int errCode = _find_table_cell_by_segment_number(&tc, (*segm) -> segmentNumber);
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
+
+	if (vas.ramFree >= (*segm) -> segmentSize) {
+		_load_segment_to_ram(&tc);
+	} else {
+		tableCell* curTC = table.head;
+		long curFreeSize = 0;
+
+		while(curTC != NULL) {
+			if (curTC -> presence == 1 && curTC -> segmentSize >= (*segm) -> segmentSize) {
+				_load_segment_to_hard_drive(&curTC);
+				_load_segment_to_ram(&tc);
+
+				return SUCCESSFUL_EXECUTION;
+			}
+
+			curTC = curTC -> next;
+		}
+
+		curTC = table.head;
+
+		while(curTC != NULL && curFreeSize < (*segm) -> segmentSize) {
+			if (curTC -> presence == 1) {
+				curFreeSize += curTC -> segmentSize;
+				_load_segment_to_hard_drive(&curTC);
+			}
+
+			curTC = curTC -> next;
+		}
+
+		_load_segment_to_ram(&tc);
+		
+		return SUCCESSFUL_EXECUTION;
+	}
+}
+
+
+
+void _load_segment_to_ram(tableCell** tc) {		//моделируем загрузку сегмента с Ж/Д в ОП
+	PA temBuff = (PA) malloc((*tc) -> segmentSize); 
+
+	(*tc) -> presence = 1;
+	
+	memcpy(temBuff, (*tc) -> physAddr, (*tc) -> segmentSize);
+	free((*tc) -> physAddr);
+
+	vas.hardFree += (*tc) -> segmentSize;
+
+	(*tc) -> physAddr = (PA) malloc((*tc) -> segmentSize);
+	memcpy((*tc) -> physAddr, temBuff, (*tc) -> segmentSize);
+	free(temBuff);
+
+	vas.ramFree -= (*tc) -> segmentSize;
+}
+
+
+
+void _load_segment_to_hard_drive(tableCell** tc) {		//моделируем загрузку сегмента из ОП на Ж/Д
+	PA temBuff = (PA) malloc((*tc) -> segmentSize); 
+
+	(*tc) -> presence = 0;
+	
+	memcpy(temBuff, (*tc) -> physAddr, (*tc) -> segmentSize);
+	free((*tc) -> physAddr);
+
+	vas.ramFree += (*tc) -> segmentSize;
+
+	(*tc) -> physAddr = (PA) malloc((*tc) -> segmentSize);
+	memcpy((*tc) -> physAddr, temBuff, (*tc) -> segmentSize);
+	free(temBuff);
+
+	vas.hardFree -= (*tc) -> segmentSize;
 }
 
 
