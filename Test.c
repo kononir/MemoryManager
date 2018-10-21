@@ -1,9 +1,13 @@
 #include <time.h>
-#include "stdio.h"
-#include "stdlib.h"
+#include <assert.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "Test.h"
 #include "MemoryManager.h"
-#include <assert.h>
+
+
 /*#define SIZE 50000
 
 struct list
@@ -154,7 +158,6 @@ int test_init_invalid_parameters(void) {
 	int n = -5, szPage = -4;
 
 	int errCode = _init(n, szPage);
-
 	assert(errCode == INVALID_PARAMETERS);
 
 	return TEST_PASSED;
@@ -164,7 +167,6 @@ int test_init_successful_execution(void) {
 	int n = 20, szPage = 30;
 
 	int errCode = _init(n, szPage);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -176,10 +178,10 @@ int test_malloc_invalid_parameters(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = -1;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _malloc(&block, szBlock);
-
 	assert(errCode == INVALID_PARAMETERS);
 
 	return TEST_PASSED;
@@ -191,10 +193,10 @@ int test_malloc_without_init(void) {
 	int errCode;
 	int szBlock = 20;
 
-	_destroy_virtual_address_space();
+	errCode = _destroy_virtual_address_space();
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _malloc(&block, szBlock);
-
 	assert(errCode == UNKNOW_ERROR);
 
 	return TEST_PASSED;
@@ -206,10 +208,10 @@ int test_malloc_one_block(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 20;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _malloc(&block, szBlock);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -222,11 +224,12 @@ int test_malloc_two_blocks(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 20;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	_malloc(&block1, szBlock);
 	errCode = _malloc(&block2, szBlock);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -240,13 +243,16 @@ int test_malloc_three_blocks(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock1And2 = 20, szBlock3 = 15;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock1And2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock1And2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _free(block1);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	_malloc(&block1, szBlock1And2);
-	_malloc(&block2, szBlock1And2);
-	_free(block1);
 	errCode = _malloc(&block3, szBlock3);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -261,14 +267,18 @@ int test_malloc_four_blocks(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock12AND3 = 20, szBlock4 = 15;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock12AND3);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock12AND3);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block3, szBlock12AND3);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _free(block2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	_malloc(&block1, szBlock12AND3);
-	_malloc(&block2, szBlock12AND3);
-	_malloc(&block3, szBlock12AND3);
-	_free(block2);
 	errCode = _malloc(&block4, szBlock4);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -281,11 +291,12 @@ int test_malloc_two_blocks_with_hard(void) {
 	int errCode;
 	int n = 15, szPage = 2, szBlock = 20;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	_malloc(&block1, szBlock);
 	errCode = _malloc(&block2, szBlock);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -297,27 +308,29 @@ int test_malloc_ram_out_of_memory(void) {
 	int errCode;
 	int n = 9, szPage = 2, szBlock = 30;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _malloc(&block, szBlock);
-
 	assert(errCode == OUT_OF_MEMORY);
 
 	return TEST_PASSED;
 }
 
 int test_malloc_hard_out_of_memory(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
 	int errCode;
-	int n = 1000, szPage = 10;
+	int n = 10000, szPage = 10;
+	int szBlock = 100000;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	do {
-		VA block = NULL;
-		int szBlock = 10000;
-
-		errCode = _malloc(&block, szBlock);
-	} while (errCode != OUT_OF_MEMORY);	
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == OUT_OF_MEMORY);
 
 	return TEST_PASSED;
 }
@@ -328,11 +341,11 @@ int test_free_invalid_parameters(void) {
 	int errCode;
 	int n = 20, szPage = 30;
 
-	_init(n, szPage);
-
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 	block = NULL;
-	errCode = _free(block);
 
+	errCode = _free(block);
 	assert(errCode == INVALID_PARAMETERS);
 
 	return TEST_PASSED;
@@ -344,11 +357,12 @@ int test_free_only_one_block(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 30;
 
-	_init(n, szPage);
-	_malloc(&block, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _free(block);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -361,12 +375,14 @@ int test_free_head(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 30;
 
-	_init(n, szPage);
-	_malloc(&block1, szBlock);
-	_malloc(&block2, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _free(block1);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -379,12 +395,14 @@ int test_free_tail(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 30;
 
-	_init(n, szPage);
-	_malloc(&block1, szBlock);
-	_malloc(&block2, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _free(block2);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -398,13 +416,16 @@ int test_free_middle(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 30;
 
-	_init(n, szPage);
-	_malloc(&block1, szBlock);
-	_malloc(&block2, szBlock);
-	_malloc(&block3, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block3, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _free(block2);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -418,10 +439,10 @@ int test_write_without_malloc(void) {
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
 
-	_init(n, szPage);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block, data, dataSize);
-
 	assert(errCode == INVALID_PARAMETERS);
 
 	return TEST_PASSED;
@@ -435,11 +456,12 @@ int test_write_out_of_vas_bounds(void) {
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
 
-	_init(n, szPage);
-	_malloc(&block, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block - 1, data, dataSize);
-
 	assert(errCode == INVALID_PARAMETERS);
 
 	return TEST_PASSED;
@@ -453,17 +475,18 @@ int test_write_out_of_block_range(void) {
 	int n = 20, szPage = 30, szBlock = 10;
 	size_t dataSize = 6;
 
-	_init(n, szPage);
-	_malloc(&block, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block + 6, data, dataSize);
-
 	assert(errCode == OUT_OF_BLOCK_RANGE);
 
 	return TEST_PASSED;
 }
 
-int test_write_data_in_block(void) {
+int test_write_data_without_loading(void) {
 	VA block = NULL;
 	PA data = "123456";
 
@@ -471,11 +494,12 @@ int test_write_data_in_block(void) {
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
 
-	_init(n, szPage);
-	_malloc(&block, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block + 1, data, dataSize);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -490,13 +514,16 @@ int test_write_data_with_loading_one_block_to_free_space(void) {
 	int n = 20, szPage = 3, szBlock = 40;
 	size_t dataSize = 6;
 
-	_init(n, szPage);
-	_malloc(&block1, szBlock);
-	_malloc(&block2, szBlock);
-	_free(block1);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _free(block1);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block2, data, dataSize);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
@@ -511,9 +538,12 @@ int test_write_data_with_uploading_one_block(void) {
 	int n = 20, szPage = 3, szBlock = 40;
 	size_t dataSize = 6;
 
-	_init(n, szPage);
-	_malloc(&block1, szBlock);
-	_malloc(&block2, szBlock);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block2, data, dataSize);
 
@@ -532,14 +562,261 @@ int test_write_data_with_uploading_many_blocks(void) {
 	int n = 20, szPage = 2, szBlock1And2 = 20, szBlock3 = 40;
 	size_t dataSize = 6;
 
-	_init(n, szPage);
-	_malloc(&block1, szBlock1And2);
-	_malloc(&block2, szBlock1And2);
-	_malloc(&block3, szBlock3);
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock1And2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock1And2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block3, szBlock3);
+	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block3, data, dataSize);
-
 	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
+}
+
+int test_write_data_with_cache_miss(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 2, szBlock = 10;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _write(block, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
+}
+
+int test_write_data_with_cache_hit(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 2, szBlock = 10;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _write(block + 1, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
+}
+
+int test_read_without_malloc(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block, data, dataSize);
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
+}
+
+int test_read_out_of_vas_bounds(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block - 1, data, dataSize);
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
+}
+
+int test_read_out_of_block_range(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 10;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block + 6, data, dataSize);
+	assert(errCode == OUT_OF_BLOCK_RANGE);
+
+	return TEST_PASSED;
+}
+
+int test_read_data_without_loading(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block + 1, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block + 1, data, dataSize);
+
+	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+
+	return TEST_PASSED;
+}
+
+int test_read_data_with_loading_one_block_to_free_space(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 3, szBlock = 40;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _free(block1);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block2, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block2, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+
+	return TEST_PASSED;
+}
+
+int test_read_data_with_uploading_one_block(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 3, szBlock = 40;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block2, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block2, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+
+	return TEST_PASSED;
+}
+
+int test_read_data_with_uploading_many_blocks(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
+	VA block3 = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 2, szBlock1And2 = 20, szBlock3 = 40;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block1, szBlock1And2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block2, szBlock1And2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block3, szBlock3);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block3, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block3, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+
+	return TEST_PASSED;
+}
+
+int test_read_data_with_cache_miss(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 2, szBlock = 10;
+	size_t dataSize = 6;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+
+	return TEST_PASSED;
+}
+
+int test_read_data_with_cache_hit(void) {
+	VA block = NULL;
+	PA data1 = "1234567890";
+	PA data2 = "999999999";
+
+	int errCode;
+	int n = 20, szPage = 2, szBlock = 10;
+	size_t dataSize1 = 10;
+	size_t dataSize2 = 9;
+
+	errCode = _init(n, szPage);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block, data1, dataSize1);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+	errCode = _write(block + 1, data2, dataSize2);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	errCode = _read(block, data1, dataSize1);
+	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("1999999999", data1) == 0);
 
 	return TEST_PASSED;
 }

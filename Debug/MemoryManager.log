@@ -1,4 +1,4 @@
-﻿Построение начато 21.10.2018 13:44:49.
+﻿Построение начато 21.10.2018 23:13:37.
      1>Проект "D:\My Programs\MemoryManager\MemoryManager.vcxproj" в узле 2 (целевые объекты build).
      1>InitializeBuildStatus:
          Создание "Debug\MemoryManager.unsuccessfulbuild", так как было задано "AlwaysCreate".
@@ -24,4 +24,4 @@
 
 Построение успешно завершено.
 
-Затраченное время: 00:00:00.68
+Затраченное время: 00:00:00.73

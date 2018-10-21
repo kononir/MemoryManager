@@ -6,8 +6,8 @@
 #define OUT_OF_MEMORY -2
 #define UNKNOW_ERROR 1
 
-typedef char* VA;						// Тип описывающий адрес блока в ВАП
-typedef char* PA;						// Тип описывающий адрес блока в ОП
+typedef char* VA;						//тип описывающий адрес блока в ВАП
+typedef char* PA;						//тип описывающий адрес блока в физической памяти
 
 typedef struct segment					//сегмент
 {
@@ -48,13 +48,13 @@ typedef struct segmentTable				//таблица сегментов
 	tableCell* tail;					//указатель на конец таблицы
 } segmentTable;
 
-typedef struct hardSegment
+typedef struct hardSegment				//сегмент на Ж/Д
 {
-	int segmentNumber;
-	PA data;
-	long segmentSize;
-	struct hardSegment* next;
-	struct hardSegment* prev;
+	int segmentNumber;					//номер сегмента
+	PA data;							//расположение в памяти
+	long segmentSize;					//размер
+	struct hardSegment* next;			//указатель на следующий сегмент
+	struct hardSegment* prev;			//указатель на предыдущий сегмент
 } hardSegment;
 
 typedef struct hardDrive
@@ -63,17 +63,17 @@ typedef struct hardDrive
 	hardSegment* tail;					//указатель на последний сегмент
 } hardDrive;
 
-typedef struct cashRecord
+typedef struct cashRecord				//запись кэша
 {
-	PA physAddr;
-	char data[10];
+	PA physAddr;						//адрес данных в основной памяти
+	PA data;							//данные 
 	unsigned int modification;			//бит модификации данных
 	unsigned int reality;				//бит присутствия сегмента в кэше
-	struct cashRecord* next;
-	struct cashRecord* prev;
+	struct cashRecord* next;			//указатель на следующую запись
+	struct cashRecord* prev;			//указатель на предыдущую запись
 } cashRecord;
 
-typedef struct cash
+typedef struct cash						//кэш
 {
 	cashRecord* head;					//указатель на первую запись
 	cashRecord* tail;					//указатель на последнюю запись
@@ -84,6 +84,10 @@ hardDrive drive;
 cash csh;
 
 static int maxSegmentNumber = 0;
+static const int hardSize = 65536;
+static int curRecordNumber = 0;
+static const int maxRecordNumber = 5;
+static const int maxRecordSize = 10;
 
 /**
  	@func	_malloc	
@@ -169,9 +173,9 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer);
  **/
 int _init (int n, int szPage);
 
-int _init_virtual_address_space(long ramSize, long hardSize);
+int _init_virtual_address_space(long ramSize);
 int _destroy_virtual_address_space();
-int _init_cash(int cashRecNum);
+int _init_cash();
 int _add_cash_record();
 int _destroy_cash();
 
@@ -184,14 +188,21 @@ int _add_hard_segment(size_t szBlock);
 int _find_segment_by_ptr(segment** segm, VA ptr);
 int _find_table_cell_by_segment_number(tableCell** tc, int segmentNumber);
 int _find_hard_segment_by_segment_number(hardSegment** hardSegm, int segmNumber);
+int _find_cash_record_by_physical_address(cashRecord** rec, PA physAddr);
+int _find_cash_record_by_current_number(cashRecord** rec);
+int _find_table_cell_by_physical_address(tableCell** tc, PA physAddr);
 
 int _free_table_cell(tableCell** tc);
 int _free_segment(segment** segm);
 int _free_hard_segment(hardSegment** hardSegm);
+int _free_cash_record(cashRecord** rec);
 
 int _free_space_to_load_segment(segment** segm);
+int _find_cash_record_to_load_segment(cashRecord** rec, tableCell* tc);
+
 int _load_segment_to_ram(tableCell** tc);
 int _load_segment_to_hard_drive(tableCell** tc);
-int _write_hard_segment(hardSegment** hardSegm, void* pBuffer, size_t szBuffer);
+int _load_segment_from_cash(cashRecord** rec);
+int _load_segment_to_cash(tableCell** tc, cashRecord** rec);
 
 #endif MEMORYMANAGER_H
