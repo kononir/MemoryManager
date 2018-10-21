@@ -4,25 +4,40 @@
 
 int _init (int n, int szPage)
 {
-	int errCode, ramSize, hardSize;
+	int errCode, ramSize, hardSize, cashRecNum;
 
 	if (n <= 0 || szPage <= 0) {
 		return INVALID_PARAMETERS;
 	}
 
-	ramSize = n * szPage, hardSize = 65536;
+	ramSize = n * szPage, hardSize = 65536, cashRecNum = 5;
 
-	errCode = _init_virtual_address_space(&vas, ramSize, hardSize);
+	errCode = _init_virtual_address_space(ramSize, hardSize);
+	if(errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
+
+	/*errCode = _init_hard_drive();
+	if(errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}*/
+
+	errCode = _init_cash(cashRecNum);
 
 	return errCode;
 }
 
 
 
-int _init_virtual_address_space(virtualAddressSpace* vas, long ramSize, long hardSize)
+int _init_virtual_address_space(long ramSize, long hardSize)
 {
+	virtualAddressSpace* vas = &table.vas;
+
 	if (vas -> space != NULL) {
-		_destroy(vas);
+		int errCode = _destroy_virtual_address_space();
+		if (errCode != SUCCESSFUL_EXECUTION) {
+			return errCode;
+		}
 	}
 
 	vas -> space = (VA) malloc(ramSize + hardSize);
@@ -43,8 +58,9 @@ int _init_virtual_address_space(virtualAddressSpace* vas, long ramSize, long har
 
 
 
-int _destroy(virtualAddressSpace* vas)
+int _destroy_virtual_address_space()
 {
+	virtualAddressSpace* vas = &table.vas;
 	segment* segm = vas -> head;
 	int errCode;
 
@@ -52,7 +68,6 @@ int _destroy(virtualAddressSpace* vas)
 		segment* nextSegm = segm -> next;
 
 		errCode = _free(segm -> virtAddr);
-
 		if (errCode != SUCCESSFUL_EXECUTION) {
 			return errCode;
 		}
@@ -72,15 +87,90 @@ int _destroy(virtualAddressSpace* vas)
 
 
 
+int _init_cash(int cashRecNum)
+{
+	int num;
+	int errCode;
+	
+	if (csh.head != NULL) {
+		errCode = _destroy_cash();
+
+		return errCode;
+	}
+
+	for (num = 0; num < cashRecNum; num++) {
+		errCode = _add_cash_record();
+		if (errCode != SUCCESSFUL_EXECUTION) {
+			return errCode;
+		}
+	}
+
+	return SUCCESSFUL_EXECUTION;
+}
+
+
+
+int _add_cash_record() {
+	cashRecord* rec = (cashRecord*) malloc(sizeof(cashRecord));
+
+	int errCode;
+
+	if (rec == NULL) {
+		return UNKNOW_ERROR;
+	}
+
+	rec -> modification = 0;
+	rec -> reality = 0;
+
+	if (csh.head == NULL && csh.tail == NULL) {
+		rec -> next = NULL;
+		rec -> prev = NULL;
+
+		csh.head = rec;
+		csh.tail = rec;
+	} else {
+		rec -> prev = csh.tail;
+		rec -> next = NULL;
+
+		csh.tail -> next = rec;
+
+		csh.tail = rec;
+	}
+
+	return SUCCESSFUL_EXECUTION;
+}
+
+
+
+int _destroy_cash()
+{
+	cashRecord* rec = csh.head;
+	int errCode;
+
+	while (rec != NULL) {
+		cashRecord* nextRec = rec -> next;
+
+		rec -> modification = 0;
+		rec -> reality = 0;
+
+		rec = nextRec;
+	}
+
+	return SUCCESSFUL_EXECUTION;
+}
+
+
+
 int _malloc (VA* ptr, size_t szBlock)
 {
+	virtualAddressSpace* vas = &table.vas;
 	int errCode;
 
 	if ((int)szBlock <= 0){
 		return INVALID_PARAMETERS;
-	} else if (vas.space == NULL) {
+	} else if (vas -> space == NULL) {
 		return UNKNOW_ERROR;
-	} else if (vas.ramSize < (long) szBlock) {
+	} else if (vas -> ramSize < (long) szBlock) {
 		return OUT_OF_MEMORY;
 	} else {
 		errCode = _take_free_space(ptr, szBlock);
@@ -94,23 +184,24 @@ int _malloc (VA* ptr, size_t szBlock)
 int _take_free_space(VA* ptr, size_t szBlock)
 {
 	int errCode;
+	virtualAddressSpace* vas = &table.vas;
 	long space, beginOfSpace, endOfSpace;
 
-	if (vas.head == NULL) {
-		(*ptr) = vas.space;		//OUT
+	if (vas -> head == NULL) {
+		(*ptr) = vas -> space;		//OUT
 
 		errCode = _add_new_block(NULL, NULL, ptr, szBlock);
 
 		return errCode;
 	} else {
-		segment* curSegm = vas.head;
+		segment* curSegm = vas -> head;
 
 		beginOfSpace = 0;
 		endOfSpace = curSegm -> offset;
 		space = endOfSpace - beginOfSpace;
 
 		if (space >= (long) szBlock) {
-			(*ptr) = vas.space;		//OUT
+			(*ptr) = vas -> space;		//OUT
 
 			errCode = _add_new_block(NULL, curSegm, ptr, szBlock);
 
@@ -136,7 +227,7 @@ int _take_free_space(VA* ptr, size_t szBlock)
 		}
 
 		beginOfSpace = curSegm -> segmentSize + curSegm -> offset;
-		endOfSpace = vas.ramSize + vas.hardSize;
+		endOfSpace = vas -> ramSize + table.vas.hardSize;
 		space = endOfSpace - beginOfSpace;
 
 		if (space >= (long) szBlock) {
@@ -176,12 +267,16 @@ int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock
 	}
 
 	errCode = _add_table_cell(prevTC, nextTC, szBlock);
-
 	if(errCode != SUCCESSFUL_EXECUTION) {
 		return errCode;
 	}
 
 	errCode = _add_segment(prevSegm, nextSegm, ptr, szBlock);
+	if(errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
+
+	errCode = _add_hard_segment(szBlock);
 
 	maxSegmentNumber++;
 
@@ -191,15 +286,10 @@ int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock
 
 
 int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) {
+	virtualAddressSpace* vas = &table.vas;
 	tableCell* tc = (tableCell*) malloc(sizeof(tableCell));
 
 	if (tc == NULL) {
-		return UNKNOW_ERROR;
-	}
-
-	tc -> physAddr = (VA) malloc((long)szBlock);
-
-	if (tc -> physAddr == NULL) {
 		return UNKNOW_ERROR;
 	}
 
@@ -207,12 +297,19 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) {
 	tc -> segmentSize = szBlock;
 	tc -> segmentNumber = maxSegmentNumber;
 
-	if (vas.ramFree < (long) szBlock) {
+	if (vas -> ramFree < (long) szBlock) {
 		tc -> presence = 0;
-		vas.hardFree -= (long) szBlock;
+		vas -> hardFree -= (long) szBlock;
+
+		tc -> physAddr = NULL;
 	} else {
 		tc -> presence = 1;
-		vas.ramFree -= (long) szBlock;
+		vas -> ramFree -= (long) szBlock;
+
+		tc -> physAddr = (VA) malloc((long)szBlock);
+		if (tc -> physAddr == NULL) {
+			return UNKNOW_ERROR;
+		}
 	}
 
 	if (prevTC != NULL && nextTC != NULL) {
@@ -249,6 +346,7 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) {
 
 
 int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock) {
+	virtualAddressSpace* vas = &table.vas;
 	segment* segm = (segment*) malloc(sizeof(segment));
 
 	if (segm == NULL) {
@@ -271,8 +369,8 @@ int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock) 
 		segm -> next = NULL;
 		segm -> prev = NULL;
 
-		vas.head = segm;
-		vas.tail = segm;
+		vas -> head = segm;
+		vas -> tail = segm;
 
 		segm -> offset = 0;
 	} else if (prevSegm == NULL) {
@@ -281,7 +379,7 @@ int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock) 
 
 		nextSegm -> prev = segm;
 
-		vas.head = segm;
+		vas -> head = segm;
 
 		segm -> offset = 0;
 	} else if (nextSegm == NULL) {
@@ -290,9 +388,45 @@ int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock) 
 
 		prevSegm -> next = segm;
 
-		vas.tail = segm;
+		vas -> tail = segm;
 
 		segm -> offset = prevSegm -> segmentSize + prevSegm -> offset;
+	}
+
+	return SUCCESSFUL_EXECUTION;
+}
+
+
+
+int _add_hard_segment(size_t szBlock) {
+	hardSegment* hardSegm = (hardSegment*) malloc(sizeof(hardSegment));
+
+	if (hardSegm == NULL) {
+		return UNKNOW_ERROR;
+	}
+
+	hardSegm -> data = (VA) malloc((long)szBlock);
+
+	if (hardSegm -> data == NULL) {
+		return UNKNOW_ERROR;
+	}
+
+	hardSegm -> segmentNumber = maxSegmentNumber;
+	hardSegm -> segmentSize = (long) szBlock;
+
+	if (drive.head == NULL && drive.tail == NULL) {
+		hardSegm -> next = NULL;
+		hardSegm -> prev = NULL;
+
+		drive.head = hardSegm;
+		drive.tail = hardSegm;
+	} else {
+		hardSegm -> prev = drive.tail;
+		hardSegm -> next = NULL;
+
+		drive.tail -> next = hardSegm;
+
+		drive.tail = hardSegm;
 	}
 
 	return SUCCESSFUL_EXECUTION;
@@ -304,6 +438,7 @@ int _free(VA ptr)
 {
 	tableCell* tc = NULL;
 	segment* segm = NULL;
+	hardSegment* hardSegm = NULL;
 	int errCode;
 
 	errCode = _find_segment_by_ptr(&segm, ptr);
@@ -316,12 +451,22 @@ int _free(VA ptr)
 		return errCode;
 	}
 
+	errCode = _find_hard_segment_by_segment_number(&hardSegm, segm -> segmentNumber);
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
+
 	errCode = _free_table_cell(&tc);
 	if (errCode != SUCCESSFUL_EXECUTION) {
 		return errCode;
 	}
 
 	errCode = _free_segment(&segm);
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
+
+	errCode = _free_hard_segment(&hardSegm);
 	
 	return errCode;
 }
@@ -330,6 +475,7 @@ int _free(VA ptr)
 
 int _free_table_cell(tableCell** tc)
 {
+	virtualAddressSpace* vas = &table.vas;
 	tableCell* prevTC = (*tc) -> prev;
 	tableCell* nextTC = (*tc) -> next;
 
@@ -348,9 +494,11 @@ int _free_table_cell(tableCell** tc)
 	}	
 
 	if ((*tc) -> presence == 0) {
-		vas.hardFree -= (*tc) -> segmentSize;
+		vas -> hardFree += (*tc) -> segmentSize;
 	} else {
-		vas.ramFree -= (*tc) -> segmentSize;
+		free((*tc) -> physAddr);
+
+		vas -> ramFree += (*tc) -> segmentSize;
 	}
 
 	free((*tc));
@@ -364,6 +512,7 @@ int _free_table_cell(tableCell** tc)
 
 int _free_segment(segment** segm)
 {
+	virtualAddressSpace* vas = &table.vas;
 	segment* prevSegm = (*segm) -> prev;
 	segment* nextSegm = (*segm) -> next;
 	
@@ -371,14 +520,14 @@ int _free_segment(segment** segm)
 		prevSegm -> next = nextSegm;
 		nextSegm -> prev = prevSegm;
 	} else if (prevSegm == NULL && nextSegm == NULL) {
-		vas.head = NULL;
-		vas.tail = NULL;
+		vas -> head = NULL;
+		vas -> tail = NULL;
 	} else if (prevSegm == NULL) {
 		nextSegm -> prev = NULL;
-		vas.head = nextSegm;
+		vas -> head = nextSegm;
 	} else if (nextSegm == NULL) {
 		prevSegm -> next = NULL;
-		vas.tail = prevSegm;
+		vas -> tail = prevSegm;
 	}
 
 	free((*segm));
@@ -390,12 +539,43 @@ int _free_segment(segment** segm)
 
 
 
+int _free_hard_segment(hardSegment** hardSegm)
+{
+	hardSegment* prevHardSegm = (*hardSegm) -> prev;
+	hardSegment* nextHardSegm = (*hardSegm) -> next;
+
+	if (prevHardSegm != NULL && nextHardSegm != NULL) {
+		prevHardSegm -> next = nextHardSegm;
+		nextHardSegm -> prev = prevHardSegm;
+	} else if (prevHardSegm == NULL && nextHardSegm == NULL) {
+		drive.head = NULL;
+		drive.tail = NULL;
+	} else if (prevHardSegm == NULL) {
+		nextHardSegm -> prev = NULL;
+		drive.head = nextHardSegm;
+	} else if (nextHardSegm == NULL) {
+		prevHardSegm -> next = NULL;
+		drive.tail = prevHardSegm;
+	}
+
+	free((*hardSegm) -> data);
+
+	free((*hardSegm));
+
+	(*hardSegm) = NULL;
+
+	return SUCCESSFUL_EXECUTION;
+}
+
+
+
 int _write (VA ptr, void* pBuffer, size_t szBuffer) 
 {
+	virtualAddressSpace* vas = &table.vas;
 	segment* segm;
 	tableCell* tc;
-	long offset = ptr - vas.space;
-	long vasSize = vas.ramSize + vas.hardSize;
+	long offset = ptr - vas -> space;
+	long vasSize = vas -> ramSize + vas -> hardSize;
 	long offsetInSegm;
 	int errCode;
 
@@ -420,19 +600,69 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 	}
 
 	if (tc -> presence == 0) {
-		errCode = _free_space_to_load_segment(&segm); //загрузка сегмента с Ж/Д в ОП
+		errCode = _free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
 		if (errCode != SUCCESSFUL_EXECUTION) {
 			return errCode;
 		}
 
-		memcpy(tc -> physAddr + offsetInSegm, (PA) pBuffer, szBuffer);
-
-		tc -> modification = 1;
-	} else {
-		memcpy(tc -> physAddr + offsetInSegm, (PA) pBuffer, szBuffer);
-
-		tc -> modification = 1;
+		errCode = _load_segment_to_ram(&tc);
+		if (errCode != SUCCESSFUL_EXECUTION) {
+			return errCode;
+		}
 	}
+
+	memcpy(tc -> physAddr + offsetInSegm, (PA) pBuffer, szBuffer);
+
+	tc -> modification = 1;
+
+	return SUCCESSFUL_EXECUTION;
+}
+
+
+
+int _read (VA ptr, void* pBuffer, size_t szBuffer)
+{
+	virtualAddressSpace* vas = &table.vas;
+	segment* segm;
+	tableCell* tc;
+	long offset = ptr - vas -> space;
+	long vasSize = vas -> ramSize + vas -> hardSize;
+	long offsetInSegm;
+	int errCode;
+
+	if (offset < 0 || offset >= vasSize || ptr == NULL) {
+		return INVALID_PARAMETERS;
+	}
+
+	errCode = _find_segment_by_ptr(&segm, ptr);
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
+
+	errCode = _find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
+
+	offsetInSegm = ptr - segm -> virtAddr;
+
+	if ((long) szBuffer > segm -> segmentSize - offsetInSegm) {
+		return OUT_OF_BLOCK_RANGE;
+	}
+
+	if (tc -> presence == 0) {
+		errCode = _free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
+		if (errCode != SUCCESSFUL_EXECUTION) {
+			return errCode;
+		}
+
+		errCode = _load_segment_to_ram(&tc);
+		if (errCode != SUCCESSFUL_EXECUTION) {
+			return errCode;
+		}
+	}
+
+	memcpy((PA) pBuffer, tc -> physAddr + offsetInSegm, szBuffer);
 
 	return SUCCESSFUL_EXECUTION;
 }
@@ -441,24 +671,24 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 
 int _free_space_to_load_segment(segment** segm) 
 {
+	virtualAddressSpace* vas = &table.vas;
 	tableCell* tc = NULL;
+
 	int errCode = _find_table_cell_by_segment_number(&tc, (*segm) -> segmentNumber);
 	if (errCode != SUCCESSFUL_EXECUTION) {
 		return errCode;
 	}
 
-	if (vas.ramFree >= (*segm) -> segmentSize) {
-		_load_segment_to_ram(&tc);
+	if (vas -> ramFree >= (*segm) -> segmentSize) {
+		return SUCCESSFUL_EXECUTION;
 	} else {
 		tableCell* curTC = table.head;
-		long curFreeSize = 0;
 
 		while(curTC != NULL) {
-			if (curTC -> presence == 1 && curTC -> segmentSize >= (*segm) -> segmentSize) {
-				_load_segment_to_hard_drive(&curTC);
-				_load_segment_to_ram(&tc);
+			if (curTC -> presence == 1 && curTC -> segmentSize + vas -> ramFree >= (*segm) -> segmentSize) {
+				errCode = _load_segment_to_hard_drive(&curTC);
 
-				return SUCCESSFUL_EXECUTION;
+				return errCode;
 			}
 
 			curTC = curTC -> next;
@@ -466,16 +696,16 @@ int _free_space_to_load_segment(segment** segm)
 
 		curTC = table.head;
 
-		while(curTC != NULL && curFreeSize < (*segm) -> segmentSize) {
+		while(curTC != NULL && vas -> ramFree < (*segm) -> segmentSize) {
 			if (curTC -> presence == 1) {
-				curFreeSize += curTC -> segmentSize;
-				_load_segment_to_hard_drive(&curTC);
+				errCode = _load_segment_to_hard_drive(&curTC);
+				if (errCode != SUCCESSFUL_EXECUTION) {
+					return errCode;
+				}
 			}
 
 			curTC = curTC -> next;
 		}
-
-		_load_segment_to_ram(&tc);
 		
 		return SUCCESSFUL_EXECUTION;
 	}
@@ -483,47 +713,73 @@ int _free_space_to_load_segment(segment** segm)
 
 
 
-void _load_segment_to_ram(tableCell** tc) {		//моделируем загрузку сегмента с Ж/Д в ОП
-	PA temBuff = (PA) malloc((*tc) -> segmentSize); 
+int _load_segment_to_ram(tableCell** tc)	//моделируем загрузку сегмента с Ж/Д в ОП
+{		
+	virtualAddressSpace* vas = &table.vas;
+	hardSegment* hardSegm = NULL;
+	PA tempBuff = (PA) malloc((*tc) -> segmentSize); 
+	int errCode;
 
-	(*tc) -> presence = 1;
-	
-	memcpy(temBuff, (*tc) -> physAddr, (*tc) -> segmentSize);
-	free((*tc) -> physAddr);
+	errCode = _find_hard_segment_by_segment_number(&hardSegm, (*tc) -> segmentNumber);
+	if (errCode != SUCCESSFUL_EXECUTION) {
+		return errCode;
+	}
 
-	vas.hardFree += (*tc) -> segmentSize;
+	memcpy(tempBuff, hardSegm -> data, (*tc) -> segmentSize);
 
 	(*tc) -> physAddr = (PA) malloc((*tc) -> segmentSize);
-	memcpy((*tc) -> physAddr, temBuff, (*tc) -> segmentSize);
-	free(temBuff);
+	if ((*tc) -> physAddr == NULL) {
+		return UNKNOW_ERROR;
+	}
 
-	vas.ramFree -= (*tc) -> segmentSize;
+	memcpy((*tc) -> physAddr, tempBuff, (*tc) -> segmentSize);
+	free(tempBuff);
+
+	vas -> ramFree -= (*tc) -> segmentSize;
+
+	(*tc) -> presence = 1;
+
+	return SUCCESSFUL_EXECUTION;
 }
 
 
 
-void _load_segment_to_hard_drive(tableCell** tc) {		//моделируем загрузку сегмента из ОП на Ж/Д
-	PA temBuff = (PA) malloc((*tc) -> segmentSize); 
+int _load_segment_to_hard_drive(tableCell** tc)	//моделируем загрузку сегмента из ОП на Ж/Д
+{		
+	virtualAddressSpace* vas = &table.vas;
+	hardSegment* hardSegm = NULL;
+	int errCode;
 
-	(*tc) -> presence = 0;
-	
-	memcpy(temBuff, (*tc) -> physAddr, (*tc) -> segmentSize);
+	if ((*tc) -> modification == 1) {
+		PA tempBuff = (PA) malloc((*tc) -> segmentSize); 
+
+		memcpy(tempBuff, (*tc) -> physAddr, (*tc) -> segmentSize);
+
+		errCode = _find_hard_segment_by_segment_number(&hardSegm, (*tc) -> segmentNumber);
+		if (errCode != SUCCESSFUL_EXECUTION) {
+			return errCode;
+		}
+
+		memcpy(hardSegm -> data, tempBuff, (*tc) -> segmentSize);
+
+		free(tempBuff);
+	}
+
 	free((*tc) -> physAddr);
 
-	vas.ramFree += (*tc) -> segmentSize;
+	vas -> ramFree += (*tc) -> segmentSize;
 
-	(*tc) -> physAddr = (PA) malloc((*tc) -> segmentSize);
-	memcpy((*tc) -> physAddr, temBuff, (*tc) -> segmentSize);
-	free(temBuff);
+	(*tc) -> presence = 0;
+	(*tc) -> modification = 0;
 
-	vas.hardFree -= (*tc) -> segmentSize;
+	return SUCCESSFUL_EXECUTION;
 }
 
 
 
 int _find_segment_by_ptr(segment** segm, VA ptr)
 {
-	(*segm) = vas.head;
+	(*segm) = table.vas.head;
 
 	while ((*segm) != NULL) {
 		long offsetInSegm = ptr - (*segm) -> virtAddr;
@@ -550,6 +806,23 @@ int _find_table_cell_by_segment_number(tableCell** tc, int segmNumber)
 		}
 
 		(*tc) = (*tc) -> next;
+	}
+
+	return INVALID_PARAMETERS;
+}
+
+
+
+int _find_hard_segment_by_segment_number(hardSegment** hardSegm, int segmNumber)
+{
+	(*hardSegm) = drive.head;
+
+	while ((*hardSegm) != NULL) {
+		if ((*hardSegm) -> segmentNumber == segmNumber) {
+			return SUCCESSFUL_EXECUTION;
+		}
+
+		(*hardSegm) = (*hardSegm) -> next;
 	}
 
 	return INVALID_PARAMETERS;

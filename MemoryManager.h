@@ -6,10 +6,31 @@
 #define OUT_OF_MEMORY -2
 #define UNKNOW_ERROR 1
 
-typedef char* VA;						// Тип описывающий адрес блока в виртуальном адресном пространстве (ВАП)
+typedef char* VA;						// Тип описывающий адрес блока в ВАП
 typedef char* PA;						// Тип описывающий адрес блока в ОП
 
-typedef struct tableCell
+typedef struct segment					//сегмент
+{
+	int segmentNumber;					//номер сегмента процесса
+	VA virtAddr;						//указатель на расположение в ВАП
+	long segmentSize;					//размер сегмента
+	long offset;						//смещение относительно начала ВАП
+	struct segment* next;				//указатель на следующий сегмент
+	struct segment* prev;				//указатель на предыдущий сегмент
+} segment;
+
+typedef struct virtualAddressSpace		//виртуальное адресное пространство (ВАП)
+{
+	VA space;							//собственно, указатель на начало ВАП
+	long ramSize;						//размер ВАП ОП
+	long hardSize;						//размер ВАП Ж/Д
+	long ramFree;						//оставшееся свободное место ВАП ОП
+	long hardFree;						//оставшееся свободное место ВАП Ж/Д
+	segment* head;						//указатель на первый сегмент
+	segment* tail;						//указатель на последний сегмент
+} virtualAddressSpace;
+
+typedef struct tableCell				//ячейка таблицы сегментов
 {
 	int segmentNumber;					//номер сегмента процесса
 	PA physAddr;						//указатель на расположение в ОП
@@ -22,33 +43,45 @@ typedef struct tableCell
 
 typedef struct segmentTable				//таблица сегментов
 {
+	virtualAddressSpace vas;			//виртуальное адресное пространтсво процесса
 	tableCell* head;					//указатель на начало таблицы
 	tableCell* tail;					//указатель на конец таблицы
 } segmentTable;
 
-typedef struct segment					//сегмент
+typedef struct hardSegment
 {
-	int segmentNumber;					//номер сегмента процесса
-	VA virtAddr;						//указатель на расположение в ВАП
-	long segmentSize;					//размер сегмента
-	long offset;						//смещение относительно начала ВАП
-	struct segment* next;				//указатель на следующий сегмент
-	struct segment* prev;				//указатель на предыдущий сегмент
-} segment;
+	int segmentNumber;
+	PA data;
+	long segmentSize;
+	struct hardSegment* next;
+	struct hardSegment* prev;
+} hardSegment;
 
-typedef struct virtualAddressSpace		//ОП, Ж/Д
+typedef struct hardDrive
 {
-	VA space;							//собственно, указатель на начало ВАП
-	long ramSize;						//размер ВАП ОП
-	long hardSize;						//размер ВАП Ж/Д
-	long ramFree;						//оставшееся свободное место ВАП ОП
-	long hardFree;						//оставшееся свободное место ВАП Ж/Д
-	segment* head;						//указатель на первый сегмент
-	segment* tail;						//указатель на последний сегмент
-} virtualAddressSpace;
+	hardSegment* head;					//указатель на первый сегмент
+	hardSegment* tail;					//указатель на последний сегмент
+} hardDrive;
 
-virtualAddressSpace vas;
+typedef struct cashRecord
+{
+	PA physAddr;
+	char data[10];
+	unsigned int modification;			//бит модификации данных
+	unsigned int reality;				//бит присутствия сегмента в кэше
+	struct cashRecord* next;
+	struct cashRecord* prev;
+} cashRecord;
+
+typedef struct cash
+{
+	cashRecord* head;					//указатель на первую запись
+	cashRecord* tail;					//указатель на последнюю запись
+} cash;
+
 segmentTable table;
+hardDrive drive;
+cash csh;
 
 static int maxSegmentNumber = 0;
 
@@ -136,22 +169,29 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer);
  **/
 int _init (int n, int szPage);
 
-int _init_virtual_address_space(virtualAddressSpace* vas, long ramSize, long hardSize);
-int _destroy(virtualAddressSpace* vas);
+int _init_virtual_address_space(long ramSize, long hardSize);
+int _destroy_virtual_address_space();
+int _init_cash(int cashRecNum);
+int _add_cash_record();
+int _destroy_cash();
 
 int _take_free_space(VA* ptr, size_t szBlock);
 int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock);
 int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock);
 int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock);
+int _add_hard_segment(size_t szBlock);
 
 int _find_segment_by_ptr(segment** segm, VA ptr);
 int _find_table_cell_by_segment_number(tableCell** tc, int segmentNumber);
+int _find_hard_segment_by_segment_number(hardSegment** hardSegm, int segmNumber);
 
 int _free_table_cell(tableCell** tc);
 int _free_segment(segment** segm);
+int _free_hard_segment(hardSegment** hardSegm);
 
 int _free_space_to_load_segment(segment** segm);
-void _load_segment_to_ram(tableCell** tc);
-void _load_segment_to_hard_drive(tableCell** tc);
+int _load_segment_to_ram(tableCell** tc);
+int _load_segment_to_hard_drive(tableCell** tc);
+int _write_hard_segment(hardSegment** hardSegm, void* pBuffer, size_t szBuffer);
 
 #endif MEMORYMANAGER_H

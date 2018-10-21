@@ -3,7 +3,7 @@
 #include "stdlib.h"
 #include "Test.h"
 #include "MemoryManager.h"
-
+#include <assert.h>
 /*#define SIZE 50000
 
 struct list
@@ -24,20 +24,22 @@ void initial();*/
 
 int main()
 {	
-	int testNumber;
+	int testNumber, passedNumber = 0;
 
 	printf("\t\t\t\t   Testing: \n");
 	
 	for (testNumber = 0; testNumber < sizeof(tests) / sizeof(tests[0]); testNumber++) {
 		int rezult = (*tests[testNumber])();
+
 		if (rezult == TEST_PASSED) {
-			printf("Test %d - Passed!\n", testNumber);
-		} else {
-			printf("Test %d - Didn't Passed!\n", testNumber);
+			printf("%s passed!\n", names[testNumber]);
+			passedNumber++;
 		}
 	}
 
 	//stressTesting();
+
+	printf("\n%d tests passed!\n", passedNumber);
 
 	system("pause");
 	
@@ -153,11 +155,9 @@ int test_init_invalid_parameters(void) {
 
 	int errCode = _init(n, szPage);
 
-	if (errCode != INVALID_PARAMETERS) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
 }
 
 int test_init_successful_execution(void) {
@@ -165,11 +165,9 @@ int test_init_successful_execution(void) {
 
 	int errCode = _init(n, szPage);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_invalid_parameters(void) {
@@ -182,11 +180,9 @@ int test_malloc_invalid_parameters(void) {
 
 	errCode = _malloc(&block, szBlock);
 
-	if (errCode != INVALID_PARAMETERS) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_without_init(void) {
@@ -195,15 +191,13 @@ int test_malloc_without_init(void) {
 	int errCode;
 	int szBlock = 20;
 
-	_destroy(&vas);
+	_destroy_virtual_address_space();
 
 	errCode = _malloc(&block, szBlock);
 
-	if (errCode != UNKNOW_ERROR) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == UNKNOW_ERROR);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_one_block(void) {
@@ -216,11 +210,9 @@ int test_malloc_one_block(void) {
 
 	errCode = _malloc(&block, szBlock);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_two_blocks(void) {
@@ -235,11 +227,9 @@ int test_malloc_two_blocks(void) {
 	_malloc(&block1, szBlock);
 	errCode = _malloc(&block2, szBlock);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_three_blocks(void) {
@@ -257,11 +247,9 @@ int test_malloc_three_blocks(void) {
 	_free(block1);
 	errCode = _malloc(&block3, szBlock3);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_four_blocks(void) {
@@ -281,11 +269,9 @@ int test_malloc_four_blocks(void) {
 	_free(block2);
 	errCode = _malloc(&block4, szBlock4);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_two_blocks_with_hard(void) {
@@ -300,11 +286,9 @@ int test_malloc_two_blocks_with_hard(void) {
 	_malloc(&block1, szBlock);
 	errCode = _malloc(&block2, szBlock);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_ram_out_of_memory(void) {
@@ -317,11 +301,9 @@ int test_malloc_ram_out_of_memory(void) {
 
 	errCode = _malloc(&block, szBlock);
 
-	if (errCode != OUT_OF_MEMORY) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == OUT_OF_MEMORY);
+
+	return TEST_PASSED;
 }
 
 int test_malloc_hard_out_of_memory(void) {
@@ -351,11 +333,9 @@ int test_free_invalid_parameters(void) {
 	block = NULL;
 	errCode = _free(block);
 
-	if (errCode != INVALID_PARAMETERS) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
 }
 
 int test_free_only_one_block(void) {
@@ -369,11 +349,9 @@ int test_free_only_one_block(void) {
 
 	errCode = _free(block);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_free_head(void) {
@@ -389,11 +367,9 @@ int test_free_head(void) {
 
 	errCode = _free(block1);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_free_tail(void) {
@@ -409,11 +385,9 @@ int test_free_tail(void) {
 
 	errCode = _free(block2);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_free_middle(void) {
@@ -431,11 +405,9 @@ int test_free_middle(void) {
 
 	errCode = _free(block2);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_write_without_malloc(void) {
@@ -450,11 +422,9 @@ int test_write_without_malloc(void) {
 
 	errCode = _write(block, data, dataSize);
 
-	if (errCode != INVALID_PARAMETERS) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
 }
 
 int test_write_out_of_vas_bounds(void) {
@@ -470,11 +440,9 @@ int test_write_out_of_vas_bounds(void) {
 
 	errCode = _write(block - 1, data, dataSize);
 
-	if (errCode != INVALID_PARAMETERS) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
 }
 
 int test_write_out_of_block_range(void) {
@@ -490,11 +458,9 @@ int test_write_out_of_block_range(void) {
 
 	errCode = _write(block + 6, data, dataSize);
 
-	if (errCode != OUT_OF_BLOCK_RANGE) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == OUT_OF_BLOCK_RANGE);
+
+	return TEST_PASSED;
 }
 
 int test_write_data_in_block(void) {
@@ -508,13 +474,11 @@ int test_write_data_in_block(void) {
 	_init(n, szPage);
 	_malloc(&block, szBlock);
 
-	errCode = _write(block, data, dataSize);
+	errCode = _write(block + 1, data, dataSize);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
 int test_write_data_with_loading_one_block_to_free_space(void) {
@@ -533,14 +497,12 @@ int test_write_data_with_loading_one_block_to_free_space(void) {
 
 	errCode = _write(block2, data, dataSize);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
-int test_write_data_with_uloading_one_block(void) {
+int test_write_data_with_uploading_one_block(void) {
 	VA block1 = NULL;
 	VA block2 = NULL;
 	PA data = "123456";
@@ -555,14 +517,12 @@ int test_write_data_with_uloading_one_block(void) {
 
 	errCode = _write(block2, data, dataSize);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }
 
-int test_write_data_with_uloading_many_blocks(void) {
+int test_write_data_with_uploading_many_blocks(void) {
 	VA block1 = NULL;
 	VA block2 = NULL;
 	VA block3 = NULL;
@@ -579,9 +539,7 @@ int test_write_data_with_uloading_many_blocks(void) {
 
 	errCode = _write(block3, data, dataSize);
 
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return TEST_NOT_PASSED;
-	} else {
-		return TEST_PASSED;
-	}
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	return TEST_PASSED;
 }

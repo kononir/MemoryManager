@@ -24,8 +24,8 @@ int test_init_invalid_parameters(void),
 	test_write_out_of_block_range(void),
 	test_write_data_in_block(void),
 	test_write_data_with_loading_one_block_to_free_space(void),
-	test_write_data_with_uloading_one_block(void),
-	test_write_data_with_uloading_many_blocks(void);
+	test_write_data_with_uploading_one_block(void),
+	test_write_data_with_uploading_many_blocks(void);
 
 int (*tests[])(void) = {
 	test_init_invalid_parameters,
@@ -49,8 +49,34 @@ int (*tests[])(void) = {
 	test_write_out_of_block_range,
 	test_write_data_in_block,
 	test_write_data_with_loading_one_block_to_free_space,
-	test_write_data_with_uloading_one_block,
-	test_write_data_with_uloading_many_blocks
+	test_write_data_with_uploading_one_block,
+	test_write_data_with_uploading_many_blocks
+};
+
+char* names[] = {
+	"test_init_invalid_parameters",
+	"test_init_successful_execution",
+	"test_malloc_invalid_parameters",
+	"test_malloc_without_init",
+	"test_malloc_one_block",
+	"test_malloc_two_blocks",
+	"test_malloc_three_blocks",
+	"test_malloc_four_blocks",
+	"test_malloc_two_blocks_with_hard",
+	"test_malloc_ram_out_of_memory",
+	"test_malloc_hard_out_of_memory",
+	"test_free_invalid_parameters",
+	"test_free_only_one_block",
+	"test_free_head",
+	"test_free_tail",
+	"test_free_middle",
+	"test_write_without_malloc",
+	"test_write_out_of_vas_bounds",
+	"test_write_out_of_block_range",
+	"test_write_data_in_block",
+	"test_write_data_with_loading_one_block_to_free_space",
+	"test_write_data_with_uploading_one_block",
+	"test_write_data_with_uploading_many_blocks"
 };
 
 #endif TEST_H
