@@ -12,6 +12,10 @@ int _init (int n, int szPage)
 
 	ramSize = n * szPage;
 
+	if (ramSize > hardSize) {
+		return INVALID_PARAMETERS;
+	}
+
 	errCode = _init_virtual_address_space(ramSize);
 	if(errCode != SUCCESSFUL_EXECUTION) {
 		return errCode;
@@ -35,7 +39,7 @@ int _init_virtual_address_space(long ramSize)
 		}
 	}
 
-	vas -> space = (VA) malloc(ramSize + hardSize);
+	vas -> space = (VA) malloc(hardSize);
 
 	if (vas -> space == NULL){
 		return UNKNOW_ERROR;
@@ -234,7 +238,7 @@ int _take_free_space(VA* ptr, size_t szBlock)
 		}
 
 		beginOfSpace = curSegm -> segmentSize + curSegm -> offset;
-		endOfSpace = vas -> ramSize + table.vas.hardSize;
+		endOfSpace = vas -> hardSize;
 		space = endOfSpace - beginOfSpace;
 
 		if (space >= (long) szBlock) {
@@ -292,7 +296,8 @@ int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock
 
 
 
-int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) {
+int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) 
+{
 	virtualAddressSpace* vas = &table.vas;
 	tableCell* tc = (tableCell*) malloc(sizeof(tableCell));
 
@@ -306,8 +311,7 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) {
 
 	if (vas -> ramFree < (long) szBlock) {
 		tc -> presence = 0;
-		vas -> hardFree -= (long) szBlock;
-
+		
 		tc -> physAddr = NULL;
 	} else {
 		tc -> presence = 1;
@@ -352,7 +356,8 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock) {
 
 
 
-int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock) {
+int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock)
+{
 	virtualAddressSpace* vas = &table.vas;
 	segment* segm = (segment*) malloc(sizeof(segment));
 
@@ -405,7 +410,9 @@ int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock) 
 
 
 
-int _add_hard_segment(size_t szBlock) {
+int _add_hard_segment(size_t szBlock)
+{
+	virtualAddressSpace* vas = &table.vas;
 	hardSegment* hardSegm = (hardSegment*) malloc(sizeof(hardSegment));
 
 	if (hardSegm == NULL) {
@@ -416,6 +423,12 @@ int _add_hard_segment(size_t szBlock) {
 
 	if (hardSegm -> data == NULL) {
 		return UNKNOW_ERROR;
+	}
+
+	if (vas -> hardFree < szBlock) {
+		return OUT_OF_MEMORY;
+	} else {
+		vas -> hardFree -= (long) szBlock;
 	}
 
 	hardSegm -> segmentNumber = maxSegmentNumber;

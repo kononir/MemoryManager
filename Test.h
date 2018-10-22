@@ -3,7 +3,8 @@
 #define TEST_PASSED 0
 #define TEST_NOT_PASSED 1
 
-int test_init_invalid_parameters(void), 
+int test_init_invalid_input(void),
+	test_init_invalid_ram_size(void),
 	test_init_successful_execution(void), 
 	test_malloc_invalid_parameters(void),
 	test_malloc_without_init(void),
@@ -39,7 +40,8 @@ int test_init_invalid_parameters(void),
 	test_read_data_with_cache_hit(void);
 
 int (*tests[])(void) = {
-	test_init_invalid_parameters,
+	test_init_invalid_input,
+	test_init_invalid_ram_size,
 	test_init_successful_execution,
 	test_malloc_invalid_parameters,
 	test_malloc_without_init,
@@ -76,7 +78,8 @@ int (*tests[])(void) = {
 };
 
 char* names[] = {
-	"test_init_invalid_parameters",
+	"test_init_invalid_input",
+	"test_init_invalid_ram_size",
 	"test_init_successful_execution",
 	"test_malloc_invalid_parameters",
 	"test_malloc_without_init",

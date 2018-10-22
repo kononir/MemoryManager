@@ -154,8 +154,17 @@ void initial()
 	beginn->va = (char*) - 1;
 }*/
 
-int test_init_invalid_parameters(void) {
+int test_init_invalid_input(void) {
 	int n = -5, szPage = -4;
+
+	int errCode = _init(n, szPage);
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
+}
+
+int test_init_invalid_ram_size(void) {
+	int n = 10000, szPage = 10;
 
 	int errCode = _init(n, szPage);
 	assert(errCode == INVALID_PARAMETERS);
@@ -321,8 +330,8 @@ int test_malloc_hard_out_of_memory(void) {
 	VA block1 = NULL;
 	VA block2 = NULL;
 	int errCode;
-	int n = 10000, szPage = 10;
-	int szBlock = 100000;
+	int n = 2, szPage = hardSize / 2;
+	int szBlock = hardSize;
 
 	errCode = _init(n, szPage);
 	assert(errCode == SUCCESSFUL_EXECUTION);
