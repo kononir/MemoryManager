@@ -4,50 +4,47 @@
 
 int _init (int n, int szPage)
 {
-	int errCode, ramSize;
+	int size;
 
-	if (n <= 0 || szPage <= 0) {
+	if (n <= 0) {
 		return INVALID_PARAMETERS;
 	}
 
-	ramSize = n * szPage;
-
-	if (ramSize > hardSize) {
+	if (szPage <= 0) {
 		return INVALID_PARAMETERS;
 	}
 
-	errCode = _init_virtual_address_space(ramSize);
-	if(errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
+	size = n * szPage;
+
+	if (size > hardSize) {
+		return INVALID_PARAMETERS;
 	}
 
-	errCode = _init_cash();
+	_init_virtual_address_space(size);
 
-	return errCode;
+	_init_cash();
+
+	return SUCCESSFUL_EXECUTION;
 }
 
 
 
-int _init_virtual_address_space(long ramSize)
+int _init_virtual_address_space(long size)
 {
 	virtualAddressSpace* vas = &table.vas;
 
 	if (vas -> space != NULL) {
-		int errCode = _destroy_virtual_address_space();
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_destroy_virtual_address_space();
 	}
 
-	vas -> space = (VA) malloc(hardSize);
+	vas -> space = (VA) malloc(size);
 
 	if (vas -> space == NULL){
 		return UNKNOW_ERROR;
 	} else {
 		vas -> head = NULL;
 		vas -> tail = NULL;
-		vas -> hardSize = hardSize;
-		vas -> ramSize = ramSize;
+		vas -> size = size;
 		vas -> hardFree = hardSize;
 		vas -> ramFree = ramSize;
 
@@ -61,15 +58,11 @@ int _destroy_virtual_address_space()
 {
 	virtualAddressSpace* vas = &table.vas;
 	segment* segm = vas -> head;
-	int errCode;
 
 	while (segm != NULL) {
 		segment* nextSegm = segm -> next;
 
-		errCode = _free(segm -> virtAddr);
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_free(segm -> virtAddr);
 
 		segm = nextSegm;
 	} 
@@ -79,7 +72,7 @@ int _destroy_virtual_address_space()
 		vas -> space = NULL;
 	}
 
-	maxSegmentNumber = 0;
+	curSegmentNumber = 0;
 
 	return SUCCESSFUL_EXECUTION;
 }
@@ -89,20 +82,13 @@ int _destroy_virtual_address_space()
 int _init_cash()
 {
 	int recNum = 0;
-	int errCode;
 	
 	if (csh.head != NULL) {
-		errCode = _destroy_cash();
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_destroy_cash();
 	}
 
 	for (recNum; recNum < maxRecordNumber; recNum++) {
-		errCode = _add_cash_record();
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_add_cash_record();
 	}
 
 	return SUCCESSFUL_EXECUTION;
@@ -112,9 +98,6 @@ int _init_cash()
 
 int _add_cash_record() {
 	cashRecord* rec = (cashRecord*) malloc(sizeof(cashRecord));
-
-	int errCode;
-
 	if (rec == NULL) {
 		return UNKNOW_ERROR;
 	}
@@ -150,7 +133,6 @@ int _add_cash_record() {
 int _destroy_cash()
 {
 	cashRecord* rec = csh.head;
-	int errCode;
 
 	while (rec != NULL) {
 		cashRecord* nextRec = rec -> next;
@@ -175,19 +157,18 @@ int _destroy_cash()
 int _malloc (VA* ptr, size_t szBlock)
 {
 	virtualAddressSpace* vas = &table.vas;
-	int errCode;
 
-	if ((int)szBlock <= 0){
+	if ((long) szBlock <= 0){
 		return INVALID_PARAMETERS;
 	} else if (vas -> space == NULL) {
 		return UNKNOW_ERROR;
-	} else if (vas -> ramSize < (long) szBlock) {
+	} else if (ramSize < (long) szBlock) {
 		return OUT_OF_MEMORY;
 	} else {
-		errCode = _take_free_space(ptr, szBlock);
+		_take_free_space(ptr, szBlock);
 	}
 
-	return errCode;
+	return SUCCESSFUL_EXECUTION;
 }
 
 
@@ -238,7 +219,7 @@ int _take_free_space(VA* ptr, size_t szBlock)
 		}
 
 		beginOfSpace = curSegm -> segmentSize + curSegm -> offset;
-		endOfSpace = vas -> hardSize;
+		endOfSpace = vas -> size;
 		space = endOfSpace - beginOfSpace;
 
 		if (space >= (long) szBlock) {
@@ -289,7 +270,7 @@ int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock
 
 	errCode = _add_hard_segment(szBlock);
 
-	maxSegmentNumber++;
+	curSegmentNumber++;
 
 	return errCode;
 }
@@ -307,7 +288,7 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock)
 
 	tc -> modification = 0;
 	tc -> segmentSize = szBlock;
-	tc -> segmentNumber = maxSegmentNumber;
+	tc -> segmentNumber = curSegmentNumber;
 
 	if (vas -> ramFree < (long) szBlock) {
 		tc -> presence = 0;
@@ -317,7 +298,7 @@ int _add_table_cell(tableCell* prevTC, tableCell* nextTC, size_t szBlock)
 		tc -> presence = 1;
 		vas -> ramFree -= (long) szBlock;
 
-		tc -> physAddr = (VA) malloc((long)szBlock);
+		tc -> physAddr = (PA) malloc((long)szBlock);
 		if (tc -> physAddr == NULL) {
 			return UNKNOW_ERROR;
 		}
@@ -366,7 +347,7 @@ int _add_segment(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock)
 	}
 
 	segm -> virtAddr = (*ptr);
-	segm -> segmentNumber = maxSegmentNumber;
+	segm -> segmentNumber = curSegmentNumber;
 	segm -> segmentSize = szBlock;
 
 	if (prevSegm != NULL && nextSegm != NULL) {
@@ -419,19 +400,19 @@ int _add_hard_segment(size_t szBlock)
 		return UNKNOW_ERROR;
 	}
 
-	hardSegm -> data = (VA) malloc((long)szBlock);
+	hardSegm -> data = (PA) malloc((long)szBlock);
 
 	if (hardSegm -> data == NULL) {
 		return UNKNOW_ERROR;
 	}
 
-	if (vas -> hardFree < szBlock) {
+	if (vas -> hardFree < (long) szBlock) {
 		return OUT_OF_MEMORY;
 	} else {
 		vas -> hardFree -= (long) szBlock;
 	}
 
-	hardSegm -> segmentNumber = maxSegmentNumber;
+	hardSegm -> segmentNumber = curSegmentNumber;
 	hardSegm -> segmentSize = (long) szBlock;
 
 	if (drive.head == NULL && drive.tail == NULL) {
@@ -460,48 +441,30 @@ int _free(VA ptr)
 	segment* segm = NULL;
 	hardSegment* hardSegm = NULL;
 	cashRecord* rec = NULL;
-	int errCode;
 
-	errCode = _find_segment_by_ptr(&segm, ptr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
+	if (ptr == NULL) {
+		return INVALID_PARAMETERS;
 	}
 
-	errCode = _find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_segment_by_ptr(&segm, ptr);
 
-	errCode = _find_hard_segment_by_segment_number(&hardSegm, segm -> segmentNumber);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
 
-	errCode = _find_cash_record_by_physical_address(&rec, tc -> physAddr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_hard_segment_by_segment_number(&hardSegm, segm -> segmentNumber);
 
-	errCode = _free_table_cell(&tc);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_cash_record_by_physical_address(&rec, tc -> physAddr);
 
-	errCode = _free_segment(&segm);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_free_table_cell(&tc);
 
-	errCode = _free_hard_segment(&hardSegm);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_free_segment(&segm);
+
+	_free_hard_segment(&hardSegm);
 
 	if (rec != NULL) {
-		errCode = _free_cash_record(&rec);
+		_free_cash_record(&rec);
 	}
 
-	return errCode;
+	return SUCCESSFUL_EXECUTION;
 }
 
 
@@ -622,24 +585,24 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 	segment* segm;
 	tableCell* tc;
 	cashRecord* rec = NULL;
-	long offset = ptr - vas -> space;
-	long vasSize = vas -> ramSize + vas -> hardSize;
+	long offset;
 	long offsetInSegm;
-	int errCode;
 
-	if (offset < 0 || offset >= vasSize || ptr == NULL) {
+	if (ptr == NULL) {
 		return INVALID_PARAMETERS;
 	}
 
-	errCode = _find_segment_by_ptr(&segm, ptr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
+	offset = ptr - vas -> space;
+
+	if (offset < 0) {
+		return INVALID_PARAMETERS;
 	}
 
-	errCode = _find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
+	if (offset >= vas -> size) {
+		return INVALID_PARAMETERS;
 	}
+
+	_find_segment_by_ptr(&segm, ptr);
 
 	offsetInSegm = ptr - segm -> virtAddr;
 
@@ -647,44 +610,31 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 		return OUT_OF_BLOCK_RANGE;
 	}
 
+	_find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
+
 	if (tc -> presence == 0) {
-		errCode = _free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
 
-		errCode = _load_segment_to_ram(&tc);
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_load_segment_to_ram(&tc);
 	}
 
-	errCode = _find_cash_record_by_physical_address(&rec, tc -> physAddr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_cash_record_by_physical_address(&rec, tc -> physAddr);
 
 	if (rec != NULL) {
 		memcpy(rec -> data + offsetInSegm, (PA) pBuffer, szBuffer);
-	} else {
-		cashRecord* rec = NULL;
 
+		rec -> modification = 1;
+	} else {
 		memcpy(tc -> physAddr + offsetInSegm, (PA) pBuffer, szBuffer);
 
-		errCode = _find_cash_record_to_load_segment(&rec, tc);
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		tc -> modification = 1;
+
+		_find_cash_record_to_load_segment(&rec, tc);
 
 		if (rec != NULL) {
-			errCode = _load_segment_to_cash(&tc, &rec);
-			if (errCode != SUCCESSFUL_EXECUTION) {
-				return errCode;
-			}
+			_load_segment_to_cash(&tc, &rec);
 		}
 	}
-
-	tc -> modification = 1;
 
 	return SUCCESSFUL_EXECUTION;
 }
@@ -697,24 +647,24 @@ int _read (VA ptr, void* pBuffer, size_t szBuffer)
 	segment* segm;
 	tableCell* tc;
 	cashRecord* rec = NULL;
-	long offset = ptr - vas -> space;
-	long vasSize = vas -> ramSize + vas -> hardSize;
+	long offset;
 	long offsetInSegm;
-	int errCode;
 
-	if (offset < 0 || offset >= vasSize || ptr == NULL) {
+	if (ptr == NULL) {
 		return INVALID_PARAMETERS;
 	}
 
-	errCode = _find_segment_by_ptr(&segm, ptr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
+	offset = ptr - vas -> space;
+
+	if (offset < 0) {
+		return INVALID_PARAMETERS;
 	}
 
-	errCode = _find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
+	if (offset >= vas -> size) {
+		return INVALID_PARAMETERS;
 	}
+
+	_find_segment_by_ptr(&segm, ptr);
 
 	offsetInSegm = ptr - segm -> virtAddr;
 
@@ -722,40 +672,25 @@ int _read (VA ptr, void* pBuffer, size_t szBuffer)
 		return OUT_OF_BLOCK_RANGE;
 	}
 
+	_find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
+
 	if (tc -> presence == 0) {
-		errCode = _free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
 
-		errCode = _load_segment_to_ram(&tc);
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_load_segment_to_ram(&tc);
 	}
 
-	errCode = _find_cash_record_by_physical_address(&rec, tc -> physAddr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_cash_record_by_physical_address(&rec, tc -> physAddr);
 
 	if (rec != NULL) {
 		memcpy((PA) pBuffer, rec -> data + offsetInSegm, szBuffer);
 	} else {
-		cashRecord* rec = NULL;
-
 		memcpy((PA) pBuffer, tc -> physAddr + offsetInSegm, szBuffer);
 
-		errCode = _find_cash_record_to_load_segment(&rec, tc);
-		if (errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_find_cash_record_to_load_segment(&rec, tc);
 
 		if (rec != NULL) {
-			errCode = _load_segment_to_cash(&tc, &rec);
-			if (errCode != SUCCESSFUL_EXECUTION) {
-				return errCode;
-			}
+			_load_segment_to_cash(&tc, &rec);
 		}
 	}
 

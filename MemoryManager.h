@@ -22,10 +22,9 @@ typedef struct segment					//сегмент
 typedef struct virtualAddressSpace		//виртуальное адресное пространство (ВАП)
 {
 	VA space;							//собственно, указатель на начало ВАП
-	long ramSize;						//размер ВАП ОП
-	long hardSize;						//размер ВАП Ж/Д
-	long ramFree;						//оставшееся свободное место ВАП ОП
-	long hardFree;						//оставшееся свободное место ВАП Ж/Д
+	long size;							//размер ВАП
+	long ramFree;						//оставшееся свободное место ОП
+	long hardFree;						//оставшееся свободное место Ж/Д
 	segment* head;						//указатель на первый сегмент
 	segment* tail;						//указатель на последний сегмент
 } virtualAddressSpace;
@@ -83,9 +82,11 @@ segmentTable table;
 hardDrive drive;
 cash csh;
 
-static int maxSegmentNumber = 0;
-static const int hardSize = 65536;
+static int curSegmentNumber = 0;
 static int curRecordNumber = 0;
+
+static const int ramSize = 8192;
+static const int hardSize = 65536;
 static const int maxRecordNumber = 5;
 static const int maxRecordSize = 10;
 
@@ -173,7 +174,7 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer);
  **/
 int _init (int n, int szPage);
 
-int _init_virtual_address_space(long ramSize);
+int _init_virtual_address_space(long size);
 int _destroy_virtual_address_space();
 int _init_cash();
 int _add_cash_record();

@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 #include "Test.h"
-#include "MemoryManager.h"
 
 
 /*#define SIZE 50000
@@ -154,8 +153,8 @@ void initial()
 	beginn->va = (char*) - 1;
 }*/
 
-int test_init_invalid_input(void) {
-	int n = -5, szPage = -4;
+int test_init_invalid_number_of_pages(void) {
+	int n = -5, szPage = 3;
 
 	int errCode = _init(n, szPage);
 	assert(errCode == INVALID_PARAMETERS);
@@ -163,7 +162,16 @@ int test_init_invalid_input(void) {
 	return TEST_PASSED;
 }
 
-int test_init_invalid_ram_size(void) {
+int test_init_invalid_page_size(void) {
+	int n = 3, szPage = -4;
+
+	int errCode = _init(n, szPage);
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
+}
+
+int test_init_invalid_virtual_address_space_size(void) {
 	int n = 10000, szPage = 10;
 
 	int errCode = _init(n, szPage);
@@ -178,17 +186,16 @@ int test_init_successful_execution(void) {
 	int errCode = _init(n, szPage);
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
+	prepare_vas_space_free();
+
 	return TEST_PASSED;
 }
 
-int test_malloc_invalid_parameters(void) {
+int test_malloc_invalid_block_size(void) {
 	VA block = NULL;
 	
 	int errCode;
-	int n = 20, szPage = 30, szBlock = -1;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	int szBlock = -1;
 
 	errCode = _malloc(&block, szBlock);
 	assert(errCode == INVALID_PARAMETERS);
@@ -202,111 +209,8 @@ int test_malloc_without_init(void) {
 	int errCode;
 	int szBlock = 20;
 
-	errCode = _destroy_virtual_address_space();
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
 	errCode = _malloc(&block, szBlock);
 	assert(errCode == UNKNOW_ERROR);
-
-	return TEST_PASSED;
-}
-
-int test_malloc_one_block(void) {
-	VA block = NULL;
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock = 20;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_malloc_two_blocks(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock = 20;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_malloc_three_blocks(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	VA block3 = NULL;
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock1And2 = 20, szBlock3 = 15;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock1And2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock1And2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _free(block1);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _malloc(&block3, szBlock3);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_malloc_four_blocks(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	VA block3 = NULL;
-	VA block4 = NULL;
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock12AND3 = 20, szBlock4 = 15;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock12AND3);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock12AND3);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block3, szBlock12AND3);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _free(block2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _malloc(&block4, szBlock4);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_malloc_two_blocks_with_hard(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-
-	int errCode;
-	int n = 15, szPage = 2, szBlock = 20;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	return TEST_PASSED;
 }
@@ -315,44 +219,42 @@ int test_malloc_ram_out_of_memory(void) {
 	VA block = NULL;
 
 	int errCode;
-	int n = 9, szPage = 2, szBlock = 30;
+	int n = 9, szPage = 2, szBlock = ramSize + 1;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
 
 	errCode = _malloc(&block, szBlock);
 	assert(errCode == OUT_OF_MEMORY);
 
+	prepare_vas_space_free();
+
 	return TEST_PASSED;
 }
 
-int test_malloc_hard_out_of_memory(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
+int test_malloc_successful_execution(void) {
+	VA block = NULL;
+
 	int errCode;
-	int n = 2, szPage = hardSize / 2;
-	int szBlock = hardSize;
+	int n = 20, szPage = 30, szBlock = 20;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
+	prepare_vas_initialization(n, szPage);
+
+	errCode = _malloc(&block, szBlock);
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == OUT_OF_MEMORY);
+	prepare_table_cells_free();
+	prepare_segments_free();
+	prepare_vas_space_free();
+	prepare_hard_drive_free();
 
 	return TEST_PASSED;
 }
 
-int test_free_invalid_parameters(void) {
-	VA block;
+int test_free_invalid_virtual_address(void) {
+	VA block = NULL;
 
 	int errCode;
 	int n = 20, szPage = 30;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	block = NULL;
 
 	errCode = _free(block);
 	assert(errCode == INVALID_PARAMETERS);
@@ -366,90 +268,51 @@ int test_free_only_one_block(void) {
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 30;
 
-	errCode = _init(n, szPage);
+	prepare_vas_initialization(n, szPage);
+	prepare_table_cell_memory_allocation(szBlock);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_memory_allocation(szBlock);
+
+	errCode = _free(table.vas.space);
 	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	prepare_vas_space_free();
+
+	return TEST_PASSED;
+}
+
+int test_free_with_cash(void) {
+	PA data = "123456";
+	VA block = NULL;
+
+	int errCode;
+	int n = 20, szPage = 30;
+	long szBlock = maxRecordSize;
+	long szBuffer = 6;
+	long offset = 0;
+
+	prepare_vas_initialization(n, szPage);
+	prepare_table_cell_write(szBlock, data, szBuffer, offset);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_write(szBlock, data, szBuffer, offset);
+	prepare_cash_record_write(data, szBuffer, offset);
 
 	errCode = _free(block);
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	return TEST_PASSED;
-}
-
-int test_free_head(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock = 30;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _free(block1);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_space_free();
+	prepare_cash_free();
 
 	return TEST_PASSED;
 }
 
-int test_free_tail(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock = 30;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _free(block2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_free_middle(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	VA block3 = NULL;
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock = 30;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block3, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _free(block2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_write_without_malloc(void) {
+int test_write_invalid_virtual_address(void) {
 	VA block = NULL;
 	PA data = "123456";
 
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _write(block, data, dataSize);
 	assert(errCode == INVALID_PARAMETERS);
@@ -457,7 +320,7 @@ int test_write_without_malloc(void) {
 	return TEST_PASSED;
 }
 
-int test_write_out_of_vas_bounds(void) {
+int test_write_out_of_left_virtual_address_space_bound(void) {
 	VA block = NULL;
 	PA data = "123456";
 
@@ -465,13 +328,32 @@ int test_write_out_of_vas_bounds(void) {
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	block = table.vas.space;
 
 	errCode = _write(block - 1, data, dataSize);
 	assert(errCode == INVALID_PARAMETERS);
+
+	prepare_vas_space_free();
+
+	return TEST_PASSED;
+}
+
+int test_write_out_of_right_virtual_address_space_bound(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	prepare_vas_initialization(n, szPage);
+	block = table.vas.space;
+
+	errCode = _write(block + (n * szPage), data, dataSize);
+	assert(errCode == INVALID_PARAMETERS);
+
+	prepare_vas_space_free();
 
 	return TEST_PASSED;
 }
@@ -482,15 +364,50 @@ int test_write_out_of_block_range(void) {
 
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 10;
+	int segmOffset = 0;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	prepare_segment_memory_allocation(&block, szBlock);
 
 	errCode = _write(block + 6, data, dataSize);
 	assert(errCode == OUT_OF_BLOCK_RANGE);
+
+	prepare_segments_free();
+	prepare_vas_space_free();
+
+	return TEST_PASSED;
+}
+
+int test_write_data_with_loading_one_block_to_free_space(void) {
+	VA block1 = NULL;
+	VA block2 = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 2, szPage = ramSize, szBlock = ramSize;
+	size_t dataSize = 6;
+
+	prepare_vas_initialization(n, szPage);
+	prepare_cash_initialization();
+
+	prepare_table_cell_memory_allocation(szBlock);
+	prepare_segment_memory_allocation(&block1, szBlock);
+	prepare_hard_segment_memory_allocation(szBlock);
+	
+	curSegmentNumber = 1;
+	prepare_table_cell_memory_allocation(szBlock);
+	prepare_segment_memory_allocation(&block2, szBlock);
+	prepare_hard_segment_memory_allocation(szBlock);
+
+	prepare_first_segment_free();
+	prepare_first_table_cell_free();
+	prepare_first_hard_segment_free();
+
+	errCode = _write(block2, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	prepare_full_free();
 
 	return TEST_PASSED;
 }
@@ -503,85 +420,17 @@ int test_write_data_without_loading(void) {
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	prepare_cash_initialization();
+
+	prepare_table_cell_memory_allocation(szBlock);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_memory_allocation(szBlock);
 
 	errCode = _write(block + 1, data, dataSize);
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
-	return TEST_PASSED;
-}
-
-int test_write_data_with_loading_one_block_to_free_space(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	PA data = "123456";
-
-	int errCode;
-	int n = 20, szPage = 3, szBlock = 40;
-	size_t dataSize = 6;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _free(block1);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _write(block2, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_write_data_with_uploading_one_block(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	PA data = "123456";
-
-	int errCode;
-	int n = 20, szPage = 3, szBlock = 40;
-	size_t dataSize = 6;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _write(block2, data, dataSize);
-
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	return TEST_PASSED;
-}
-
-int test_write_data_with_uploading_many_blocks(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	VA block3 = NULL;
-	PA data = "123456";
-
-	int errCode;
-	int n = 20, szPage = 2, szBlock1And2 = 20, szBlock3 = 40;
-	size_t dataSize = 6;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock1And2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock1And2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block3, szBlock3);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _write(block3, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_full_free();
 
 	return TEST_PASSED;
 }
@@ -594,13 +443,17 @@ int test_write_data_with_cache_miss(void) {
 	int n = 20, szPage = 2, szBlock = 10;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	prepare_cash_initialization();
+
+	prepare_table_cell_memory_allocation(szBlock);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_memory_allocation(szBlock);
 
 	errCode = _write(block, data, dataSize);
 	assert(errCode == SUCCESSFUL_EXECUTION);
+
+	prepare_full_free();
 
 	return TEST_PASSED;
 }
@@ -611,31 +464,31 @@ int test_write_data_with_cache_hit(void) {
 
 	int errCode;
 	int n = 20, szPage = 2, szBlock = 10;
+	long offset = 0;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+
+	prepare_table_cell_write(szBlock, data, dataSize, offset);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_write(szBlock, data, dataSize, offset);
+	prepare_cash_record_write(data, dataSize, offset);
 
 	errCode = _write(block + 1, data, dataSize);
 	assert(errCode == SUCCESSFUL_EXECUTION);
 
+	prepare_full_free();
+
 	return TEST_PASSED;
 }
 
-int test_read_without_malloc(void) {
+int test_read_invalid_virtual_address(void) {
 	VA block = NULL;
 	PA data = "123456";
 
 	int errCode;
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
 
 	errCode = _read(block, data, dataSize);
 	assert(errCode == INVALID_PARAMETERS);
@@ -643,7 +496,7 @@ int test_read_without_malloc(void) {
 	return TEST_PASSED;
 }
 
-int test_read_out_of_vas_bounds(void) {
+int test_read_out_of_left_virtual_address_space_bound(void) {
 	VA block = NULL;
 	PA data = "123456";
 
@@ -651,14 +504,27 @@ int test_read_out_of_vas_bounds(void) {
 	int n = 20, szPage = 30, szBlock = 20;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	block = table.vas.space;
 
 	errCode = _read(block - 1, data, dataSize);
+	assert(errCode == INVALID_PARAMETERS);
+
+	return TEST_PASSED;
+}
+
+int test_read_out_of_right_virtual_address_space_bound(void) {
+	VA block = NULL;
+	PA data = "123456";
+
+	int errCode;
+	int n = 20, szPage = 30, szBlock = 20;
+	size_t dataSize = 6;
+
+	prepare_vas_initialization(n, szPage);
+	block = table.vas.space;
+
+	errCode = _read(block + (n * szPage), data, dataSize);
 	assert(errCode == INVALID_PARAMETERS);
 
 	return TEST_PASSED;
@@ -672,37 +538,11 @@ int test_read_out_of_block_range(void) {
 	int n = 20, szPage = 30, szBlock = 10;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	prepare_segment_memory_allocation(&block, szBlock);
 
 	errCode = _read(block + 6, data, dataSize);
 	assert(errCode == OUT_OF_BLOCK_RANGE);
-
-	return TEST_PASSED;
-}
-
-int test_read_data_without_loading(void) {
-	VA block = NULL;
-	PA data = "123456";
-
-	int errCode;
-	int n = 20, szPage = 30, szBlock = 20;
-	size_t dataSize = 6;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block + 1, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _read(block + 1, data, dataSize);
-
-	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
 
 	return TEST_PASSED;
 }
@@ -713,73 +553,54 @@ int test_read_data_with_loading_one_block_to_free_space(void) {
 	PA data = "123456";
 
 	int errCode;
-	int n = 20, szPage = 3, szBlock = 40;
+	int n = 2, szPage = ramSize, szBlock = ramSize + 1;
+	long offset = 0;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _free(block1);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block2, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	prepare_cash_initialization();
+
+	prepare_table_cell_memory_allocation(szBlock);
+	prepare_segment_memory_allocation(&block1, szBlock);
+	prepare_hard_segment_memory_allocation(szBlock);
+	
+	curSegmentNumber = 1;
+	prepare_table_cell_write(szBlock, data, dataSize, offset);
+	prepare_segment_memory_allocation(&block2, szBlock);
+	prepare_hard_segment_write(szBlock, data, dataSize, offset);
+
+	prepare_first_segment_free();
+	prepare_first_table_cell_free();
+	prepare_first_hard_segment_free();
 
 	errCode = _read(block2, data, dataSize);
 	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
 
-	return TEST_PASSED;
-}
-
-int test_read_data_with_uploading_one_block(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	PA data = "123456";
-
-	int errCode;
-	int n = 20, szPage = 3, szBlock = 40;
-	size_t dataSize = 6;
-
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block2, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-
-	errCode = _read(block2, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+	prepare_full_free();
 
 	return TEST_PASSED;
 }
 
-int test_read_data_with_uploading_many_blocks(void) {
-	VA block1 = NULL;
-	VA block2 = NULL;
-	VA block3 = NULL;
+int test_read_data_without_loading(void) {
+	VA block = NULL;
 	PA data = "123456";
 
 	int errCode;
-	int n = 20, szPage = 2, szBlock1And2 = 20, szBlock3 = 40;
+	int n = 20, szPage = 30, szBlock = 20;
+	int offset = 1;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block1, szBlock1And2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block2, szBlock1And2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block3, szBlock3);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block3, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	prepare_cash_initialization();
 
-	errCode = _read(block3, data, dataSize);
+	prepare_table_cell_write(szBlock, data, dataSize, offset);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_write(szBlock, data, dataSize, offset);
+
+	errCode = _read(block + 1, data, dataSize);
 	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+
+	prepare_full_free();
 
 	return TEST_PASSED;
 }
@@ -790,42 +611,344 @@ int test_read_data_with_cache_miss(void) {
 
 	int errCode;
 	int n = 20, szPage = 2, szBlock = 10;
+	long offset = 1;
 	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block, data, dataSize);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
+	prepare_cash_initialization();
 
-	errCode = _read(block, data, dataSize);
+	prepare_table_cell_write(szBlock, data, dataSize, offset);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_write(szBlock, data, dataSize, offset);
+
+	errCode = _read(block + 1, data, dataSize);
 	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
+
+	prepare_full_free();
 
 	return TEST_PASSED;
 }
 
 int test_read_data_with_cache_hit(void) {
 	VA block = NULL;
-	PA data1 = "1234567890";
-	PA data2 = "999999999";
+	PA data = "123456";
 
 	int errCode;
 	int n = 20, szPage = 2, szBlock = 10;
-	size_t dataSize1 = 10;
-	size_t dataSize2 = 9;
+	long offset = 1;
+	size_t dataSize = 6;
 
-	errCode = _init(n, szPage);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _malloc(&block, szBlock);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block, data1, dataSize1);
-	assert(errCode == SUCCESSFUL_EXECUTION);
-	errCode = _write(block + 1, data2, dataSize2);
-	assert(errCode == SUCCESSFUL_EXECUTION);
+	prepare_vas_initialization(n, szPage);
 
-	errCode = _read(block, data1, dataSize1);
-	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("1999999999", data1) == 0);
+	prepare_table_cell_write(szBlock, data, dataSize, offset);
+	prepare_segment_memory_allocation(&block, szBlock);
+	prepare_hard_segment_write(szBlock, data, dataSize, offset);
+	prepare_cash_record_write(data, dataSize, offset);
+
+	errCode = _read(block + 1, data, dataSize);
+	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
 
 	return TEST_PASSED;
+}
+
+
+
+void prepare_vas_initialization(int n, int szPage) {
+	table.vas.space = (VA) malloc(n * szPage);
+	table.vas.size = n * szPage;
+	table.vas.ramFree = ramSize;
+	table.vas.hardFree = hardSize;
+}
+
+void prepare_segment_memory_allocation(VA* ptr, long szBlock) {
+	segment* segm = (segment*) malloc(sizeof(segment));
+
+	segm -> segmentNumber = curSegmentNumber;
+	segm -> segmentSize = szBlock;
+
+	if (table.vas.head == NULL) {
+		segm -> next = NULL;
+		segm -> prev = NULL;
+
+		segm -> offset = 0;
+		segm -> virtAddr = table.vas.space;
+
+		table.vas.head = segm;
+		table.vas.tail = segm;
+	} else {
+		segm -> prev = table.vas.tail;
+		segm -> next = NULL;
+
+		segm -> offset = table.vas.tail -> segmentSize + table.vas.tail -> offset;
+		segm -> virtAddr = table.vas.space + segm -> offset;
+
+		table.vas.tail -> next = segm;
+
+		table.vas.tail = segm;
+	}
+
+	(*ptr) = segm -> virtAddr;
+}
+
+void prepare_table_cell_memory_allocation(long szBlock) {
+	tableCell* tc = (tableCell*) malloc(sizeof(tableCell));
+
+	tc -> modification = 0;
+	tc -> segmentSize = szBlock;
+	tc -> segmentNumber = curSegmentNumber;
+
+	if (table.vas.ramFree < (long) szBlock) {
+		tc -> presence = 0;
+		
+		tc -> physAddr = NULL;
+	} else {
+		tc -> presence = 1;
+		table.vas.ramFree -= (long) szBlock;
+
+		tc -> physAddr = (PA) malloc((long)szBlock);
+	}
+
+	if (table.head == NULL) {
+		tc -> next = NULL;
+		tc -> prev = NULL;
+
+		table.head = tc;
+		table.tail = tc;
+	} else {
+		tc -> prev = table.tail;
+		tc -> next = NULL;
+
+		table.tail -> next = tc;
+
+		table.tail = tc;
+	}
+}
+
+void prepare_hard_segment_memory_allocation(long szBlock) {
+	hardSegment* hardSegm = (hardSegment*) malloc(sizeof(hardSegment));
+
+	hardSegm -> data = (PA) malloc((long)szBlock);
+	table.vas.hardFree -= (long) szBlock;
+
+	hardSegm -> segmentNumber = curSegmentNumber;
+	hardSegm -> segmentSize = (long) szBlock;
+
+	if (drive.head == NULL) {
+		hardSegm -> next = NULL;
+		hardSegm -> prev = NULL;
+
+		drive.head = hardSegm;
+		drive.tail = hardSegm;
+	} else {
+		hardSegm -> prev = drive.tail;
+		hardSegm -> next = NULL;
+
+		drive.tail -> next = hardSegm;
+
+		drive.tail = hardSegm;
+	}
+}
+
+void prepare_cash_initialization() {
+	int recNum = 0;
+
+	for (recNum; recNum < maxRecordNumber; recNum++) {
+		cashRecord* rec = (cashRecord*) malloc(sizeof(cashRecord));
+
+		rec -> data = (PA) malloc(maxRecordSize);
+
+		rec -> modification = 0;
+		rec -> reality = 0;
+
+		if (csh.head == NULL) {
+			rec -> next = NULL;
+			rec -> prev = NULL;
+
+			csh.head = rec;
+			csh.tail = rec;
+		} else {
+			rec -> prev = csh.tail;
+			rec -> next = NULL;
+
+			csh.tail -> next = rec;
+
+			csh.tail = rec;
+		}
+	}
+}
+
+void prepare_table_cell_write(size_t szBlock, PA data, long szBuffer, long offset) {
+	tableCell* tc = (tableCell*) malloc(sizeof(tableCell));
+
+	tc -> modification = 0;
+	tc -> segmentSize = szBlock;
+	tc -> segmentNumber = curSegmentNumber;
+
+	if (table.vas.ramFree < (long) szBlock) {
+		tc -> presence = 0;
+		
+		tc -> physAddr = NULL;
+	} else {
+		tc -> presence = 1;
+		table.vas.ramFree -= (long) szBlock;
+
+		tc -> physAddr = (PA) malloc((long)szBlock);
+		memcpy(tc -> physAddr + offset, data, szBuffer);
+	}
+
+	if (table.head == NULL) {
+		tc -> next = NULL;
+		tc -> prev = NULL;
+
+		table.head = tc;
+		table.tail = tc;
+	} else {
+		tc -> prev = table.tail;
+		tc -> next = NULL;
+
+		table.tail -> next = tc;
+
+		table.tail = tc;
+	}
+}
+
+void prepare_hard_segment_write(size_t szBlock, PA data, long szBuffer, long offset) {
+	hardSegment* hardSegm = (hardSegment*) malloc(sizeof(hardSegment));
+
+	hardSegm -> data = (PA) malloc((long)szBlock);
+	table.vas.hardFree -= (long) szBlock;
+
+	hardSegm -> segmentNumber = curSegmentNumber;
+	hardSegm -> segmentSize = (long) szBlock;
+
+	if (drive.head == NULL) {
+		hardSegm -> next = NULL;
+		hardSegm -> prev = NULL;
+
+		drive.head = hardSegm;
+		drive.tail = hardSegm;
+	} else {
+		hardSegm -> prev = drive.tail;
+		hardSegm -> next = NULL;
+
+		drive.tail -> next = hardSegm;
+
+		drive.tail = hardSegm;
+	}
+
+	memcpy(hardSegm -> data + offset, data, szBuffer);
+}
+
+void prepare_cash_record_write(PA data, long szBuffer, long offset) {
+	cashRecord* rec = (cashRecord*) malloc(sizeof(cashRecord));
+	rec -> physAddr = table.head -> physAddr;
+	rec -> data = (PA) malloc(maxRecordSize);
+	rec -> modification = 0;
+	rec -> reality = 1;
+	rec -> next = NULL;
+	rec -> prev = NULL;
+
+	csh.head = rec;
+	csh.tail = rec;
+
+	memcpy(rec -> data + offset, data, szBuffer);
+}
+
+void prepare_vas_space_free() {
+	free(table.vas.space);
+	table.vas.space = NULL;
+
+	curSegmentNumber = 0;
+}
+
+void prepare_segments_free() {
+	segment* segm = table.vas.head;
+
+	while (segm != NULL) {
+		segment* nextSegm = segm -> next;
+		free(segm);
+
+		segm = nextSegm;
+	}
+
+	table.vas.head = NULL;
+	table.vas.tail = NULL;
+}
+
+void prepare_table_cells_free() {
+	tableCell* tc = table.head;
+
+	while (tc != NULL) {
+		tableCell* nextTC = tc -> next;
+		free(tc -> physAddr);
+		free(tc);
+
+		tc = nextTC;
+	}
+
+	table.head = NULL;
+	table.tail = NULL;
+}
+
+void prepare_hard_drive_free() {
+	hardSegment* hardSegm = drive.head;
+
+	while (hardSegm != NULL) {
+		hardSegment* nextHardSegm = hardSegm -> next;
+		free(hardSegm -> data);
+		free(hardSegm);
+
+		hardSegm = nextHardSegm;
+	}
+
+	drive.head = NULL;
+	drive.tail = NULL;
+}
+
+void prepare_cash_free() {
+	cashRecord* rec = csh.head;
+
+	while (rec != NULL) {
+		cashRecord* nextRec = rec -> next;
+		free(rec -> data);
+		free(rec);
+
+		rec = nextRec;
+	}
+
+	csh.head = NULL;
+	csh.tail = NULL;
+
+	curRecordNumber = 0;
+}
+
+void prepare_full_free() {
+	prepare_table_cells_free();
+	prepare_segments_free();
+	prepare_vas_space_free();
+	prepare_hard_drive_free();
+	prepare_cash_free();
+}
+
+void prepare_first_segment_free() {
+	free(table.vas.head);
+	table.vas.tail -> prev = NULL;
+
+	table.vas.head = table.vas.tail;
+}
+
+void prepare_first_table_cell_free() {
+	free(table.head -> physAddr);
+	free(table.head);
+	table.tail -> prev = NULL;
+
+	table.head = table.tail;
+}
+
+void prepare_first_hard_segment_free() {
+	free(drive.head -> data);
+	free(drive.head);
+	drive.tail -> prev = NULL;
+
+	drive.head = drive.tail;
 }
