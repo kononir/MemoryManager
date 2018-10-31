@@ -1,4 +1,4 @@
-#include "stdlib.h"
+п»ї#include "stdlib.h"
 #include "string.h"
 #include "MemoryManager.h"
 
@@ -613,7 +613,7 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 	_find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
 
 	if (tc -> presence == 0) {
-		_free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
+		_free_space_to_load_segment(&segm); //РѕСЃРІРѕР±РѕР¶РґРµРЅРёРµ РјРµСЃС‚Р° РІ РћРџ РїРѕРґ СЃРµРіРјРµРЅС‚
 
 		_load_segment_to_ram(&tc);
 	}
@@ -675,7 +675,7 @@ int _read (VA ptr, void* pBuffer, size_t szBuffer)
 	_find_table_cell_by_segment_number(&tc, segm -> segmentNumber);
 
 	if (tc -> presence == 0) {
-		_free_space_to_load_segment(&segm); //освобождение места в ОП под сегмент
+		_free_space_to_load_segment(&segm); //РѕСЃРІРѕР±РѕР¶РґРµРЅРёРµ РјРµСЃС‚Р° РІ РћРџ РїРѕРґ СЃРµРіРјРµРЅС‚
 
 		_load_segment_to_ram(&tc);
 	}
@@ -743,7 +743,7 @@ int _free_space_to_load_segment(segment** segm)
 
 
 
-int _load_segment_to_ram(tableCell** tc)	//моделируем загрузку сегмента с Ж/Д в ОП
+int _load_segment_to_ram(tableCell** tc)	//РјРѕРґРµР»РёСЂСѓРµРј Р·Р°РіСЂСѓР·РєСѓ СЃРµРіРјРµРЅС‚Р° СЃ Р–/Р” РІ РћРџ
 {		
 	virtualAddressSpace* vas = &table.vas;
 	hardSegment* hardSegm = NULL;
@@ -770,7 +770,7 @@ int _load_segment_to_ram(tableCell** tc)	//моделируем загрузку сегмента с Ж/Д в 
 
 
 
-int _load_segment_to_hard_drive(tableCell** tc)	//моделируем загрузку сегмента из ОП на Ж/Д
+int _load_segment_to_hard_drive(tableCell** tc)	//РјРѕРґРµР»РёСЂСѓРµРј Р·Р°РіСЂСѓР·РєСѓ СЃРµРіРјРµРЅС‚Р° РёР· РћРџ РЅР° Р–/Р”
 {		
 	virtualAddressSpace* vas = &table.vas;
 	hardSegment* hardSegm = NULL;
