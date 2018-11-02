@@ -165,10 +165,8 @@ int _malloc (VA* ptr, size_t szBlock)
 	} else if (ramSize < (long) szBlock) {
 		return OUT_OF_MEMORY;
 	} else {
-		_take_free_space(ptr, szBlock);
+		return _take_free_space(ptr, szBlock);
 	}
-
-	return SUCCESSFUL_EXECUTION;
 }
 
 
@@ -180,11 +178,17 @@ int _take_free_space(VA* ptr, size_t szBlock)
 	long space, beginOfSpace, endOfSpace;
 
 	if (vas -> head == NULL) {
-		(*ptr) = vas -> space;		//OUT
+		beginOfSpace = 0;
+		endOfSpace = vas -> size;
+		space = endOfSpace - beginOfSpace;
 
-		errCode = _add_new_block(NULL, NULL, ptr, szBlock);
+		if (space >= (long) szBlock) {
+			(*ptr) = vas -> space;		//OUT
 
-		return errCode;
+			_add_new_block(NULL, NULL, ptr, szBlock);
+
+			return SUCCESSFUL_EXECUTION;
+		}
 	} else {
 		segment* curSegm = vas -> head;
 
@@ -195,9 +199,9 @@ int _take_free_space(VA* ptr, size_t szBlock)
 		if (space >= (long) szBlock) {
 			(*ptr) = vas -> space;		//OUT
 
-			errCode = _add_new_block(NULL, curSegm, ptr, szBlock);
+			_add_new_block(NULL, curSegm, ptr, szBlock);
 
-			return errCode;
+			return SUCCESSFUL_EXECUTION;
 		}
 			
 		while(curSegm -> next != NULL) {
@@ -210,9 +214,9 @@ int _take_free_space(VA* ptr, size_t szBlock)
 			if (space >= (long) szBlock) {
 				(*ptr) = curSegm -> virtAddr + curSegm -> segmentSize;		//OUT
 
-				errCode = _add_new_block(curSegm, nextSegm, ptr, szBlock);
+				_add_new_block(curSegm, nextSegm, ptr, szBlock);
 
-				return errCode;
+				return SUCCESSFUL_EXECUTION;
 			}
 
 			curSegm = nextSegm;
@@ -225,9 +229,9 @@ int _take_free_space(VA* ptr, size_t szBlock)
 		if (space >= (long) szBlock) {
 			(*ptr) = curSegm -> virtAddr + curSegm -> segmentSize;		//OUT
 
-			errCode = _add_new_block(curSegm, NULL, ptr, szBlock);
+			_add_new_block(curSegm, NULL, ptr, szBlock);
 
-			return errCode;
+			return SUCCESSFUL_EXECUTION;
 		}
 	}
 
@@ -489,9 +493,7 @@ int _free_table_cell(tableCell** tc)
 		table.tail = prevTC;
 	}	
 
-	if ((*tc) -> presence == 0) {
-		vas -> hardFree += (*tc) -> segmentSize;
-	} else {
+	if ((*tc) -> presence == 1) {
 		free((*tc) -> physAddr);
 
 		vas -> ramFree += (*tc) -> segmentSize;
@@ -537,6 +539,7 @@ int _free_segment(segment** segm)
 
 int _free_hard_segment(hardSegment** hardSegm)
 {
+	virtualAddressSpace* vas = &table.vas;
 	hardSegment* prevHardSegm = (*hardSegm) -> prev;
 	hardSegment* nextHardSegm = (*hardSegm) -> next;
 
@@ -555,6 +558,8 @@ int _free_hard_segment(hardSegment** hardSegm)
 	}
 
 	free((*hardSegm) -> data);
+
+	vas -> hardFree += (*hardSegm) -> segmentSize;
 
 	free((*hardSegm));
 

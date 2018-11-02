@@ -7,7 +7,7 @@
 #include "Test.h"
 
 
-/*#define SIZE 50000
+/*#define SIZE 65536
 
 struct list
 {
@@ -220,6 +220,22 @@ int test_malloc_ram_out_of_memory(void) {
 
 	int errCode;
 	int n = 9, szPage = 2, szBlock = ramSize + 1;
+
+	prepare_vas_initialization(n, szPage);
+
+	errCode = _malloc(&block, szBlock);
+	assert(errCode == OUT_OF_MEMORY);
+
+	prepare_vas_space_free();
+
+	return TEST_PASSED;
+}
+
+int test_malloc_virtual_address_space_out_of_memory(void) {
+	VA block = NULL;
+
+	int errCode;
+	int n = 9, szPage = 2, szBlock = (n * szPage) + 1;
 
 	prepare_vas_initialization(n, szPage);
 
@@ -880,7 +896,13 @@ void prepare_table_cells_free() {
 
 	while (tc != NULL) {
 		tableCell* nextTC = tc -> next;
-		free(tc -> physAddr);
+
+		if (tc -> presence == 1) {
+			free(tc -> physAddr);
+
+			table.vas.ramFree += tc -> segmentSize;
+		}
+		
 		free(tc);
 
 		tc = nextTC;
@@ -896,6 +918,9 @@ void prepare_hard_drive_free() {
 	while (hardSegm != NULL) {
 		hardSegment* nextHardSegm = hardSegm -> next;
 		free(hardSegm -> data);
+
+		table.vas.hardFree += hardSegm -> segmentSize;
+
 		free(hardSegm);
 
 		hardSegm = nextHardSegm;
@@ -951,4 +976,10 @@ void prepare_first_hard_segment_free() {
 	drive.tail -> prev = NULL;
 
 	drive.head = drive.tail;
+}
+
+
+
+void stress_test() {
+	
 }
