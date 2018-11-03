@@ -69,11 +69,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="getCPUTime.c" />
     <ClCompile Include="MemoryManager.c" />
+    <ClCompile Include="SysTime.c" />
     <ClCompile Include="Test.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="getCPUTime.h" />
     <ClInclude Include="MemoryManager.h" />
+    <ClInclude Include="SysTime.h" />
     <ClInclude Include="Test.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

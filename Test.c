@@ -1,9 +1,9 @@
-﻿#include <time.h>
-#include <assert.h>
+﻿#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "SysTime.h"
 #include "Test.h"
 
 
@@ -28,8 +28,9 @@ void initial();*/
 int main()
 {	
 	int testNumber, passedNumber = 0;
+	long long endTime, time;
 
-	printf("\t\t\t\t   Testing: \n");
+	printf("\t\t\t\t Tests:\n");
 	
 	for (testNumber = 0; testNumber < sizeof(tests) / sizeof(tests[0]); testNumber++) {
 		int rezult = (*tests[testNumber])();
@@ -40,9 +41,15 @@ int main()
 		}
 	}
 
+	printf("\n%d tests passed!\n", passedNumber);
+
 	//stressTesting();
 
-	printf("\n%d tests passed!\n", passedNumber);
+	endTime = getSysTimeInMilliseconds();
+
+	time = endTime - beginTime;
+
+	printf("\nTime: %d milliseconds\n", time);
 
 	system("pause");
 	
@@ -664,8 +671,38 @@ int test_read_data_with_cache_hit(void) {
 	errCode = _read(block + 1, data, dataSize);
 	assert(errCode == SUCCESSFUL_EXECUTION && strcmp("123456", data) == 0);
 
+	prepare_full_free();
+
 	return TEST_PASSED;
 }
+
+
+
+/*int test_read_data_with_cache_miss_functional(void) {
+	PA data = "123456";
+
+	int errCode;
+	int numberOfBlocks = 6, currBlock = 0;
+	int n = 100, szPage = 2, szBlock = 10;
+	long offset = 1;
+	size_t dataSize = 6;
+
+	_init(n, szPage);
+
+	while (currBlock < numberOfBlocks) {
+		VA block = NULL;
+
+		_malloc(&block, szBlock);
+
+		_write(block + 1, data, dataSize);
+
+		errCode = _read(block + 1, data, dataSize);
+
+		currBlock++;
+	}
+
+	return TEST_PASSED;
+}*/
 
 
 
@@ -943,8 +980,6 @@ void prepare_cash_free() {
 
 	csh.head = NULL;
 	csh.tail = NULL;
-
-	curRecordNumber = 0;
 }
 
 void prepare_full_free() {

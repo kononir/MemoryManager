@@ -21,12 +21,24 @@
     <ClCompile Include="Test.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="getCPUTime.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SysTime.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MemoryManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="getCPUTime.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SysTime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

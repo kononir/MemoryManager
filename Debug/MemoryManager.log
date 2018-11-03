@@ -1,16 +1,17 @@
-﻿Построение начато 02.11.2018 23:13:20.
+﻿Построение начато 03.11.2018 19:00:12.
      1>Проект "D:\My Programs\MemoryManager\MemoryManager.vcxproj" в узле 2 (целевые объекты build).
      1>InitializeBuildStatus:
          Создание "Debug\MemoryManager.unsuccessfulbuild", так как было задано "AlwaysCreate".
        ClCompile:
-         c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt MemoryManager.c
-         MemoryManager.c
-     1>MemoryManager.c(176): warning C4101: errCode: неиспользованная локальная переменная
+         c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt Test.c
+         Test.c
        ManifestResourceCompile:
          Для всех выходных данных обновления не требуется.
        Link:
          c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\My Programs\MemoryManager\Debug\MemoryManager.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Debug\MemoryManager.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"D:\My Programs\MemoryManager\Debug\MemoryManager.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\My Programs\MemoryManager\Debug\MemoryManager.lib" /MACHINE:X86 Debug\MemoryManager.exe.embed.manifest.res
+         Debug\getCPUTime.obj
          Debug\MemoryManager.obj
+         Debug\SysTime.obj
          Debug\Test.obj
        Manifest:
          C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /out:"Debug\MemoryManager.exe.embed.manifest" /manifest Debug\MemoryManager.exe.intermediate.manifest
@@ -25,4 +26,4 @@
 
 Построение успешно завершено.
 
-Затраченное время: 00:00:01.09
+Затраченное время: 00:00:01.19

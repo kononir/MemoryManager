@@ -1,6 +1,10 @@
-﻿#include "stdlib.h"
-#include "string.h"
+﻿#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <time.h>
+#include "SysTime.h"
 #include "MemoryManager.h"
+
 
 int _init (int n, int szPage)
 {
@@ -87,6 +91,8 @@ int _init_cash()
 		_destroy_cash();
 	}
 
+	beginTime = getSysTimeInMilliseconds();
+
 	for (recNum; recNum < maxRecordNumber; recNum++) {
 		_add_cash_record();
 	}
@@ -97,6 +103,7 @@ int _init_cash()
 
 
 int _add_cash_record() {
+	int i= 0, j = 0;
 	cashRecord* rec = (cashRecord*) malloc(sizeof(cashRecord));
 	if (rec == NULL) {
 		return UNKNOW_ERROR;
@@ -124,6 +131,8 @@ int _add_cash_record() {
 
 		csh.tail = rec;
 	}
+
+	rec -> lastAccessTime = getSysTimeInMilliseconds();
 
 	return SUCCESSFUL_EXECUTION;
 }
@@ -173,7 +182,6 @@ int _malloc (VA* ptr, size_t szBlock)
 
 int _take_free_space(VA* ptr, size_t szBlock)
 {
-	int errCode;
 	virtualAddressSpace* vas = &table.vas;
 	long space, beginOfSpace, endOfSpace;
 
@@ -244,39 +252,24 @@ int _add_new_block(segment* prevSegm, segment* nextSegm, VA* ptr, size_t szBlock
 {
 	tableCell* prevTC = NULL;
 	tableCell* nextTC = NULL;
-	int errCode;
 
 	if (prevSegm != NULL) {
-		errCode = _find_table_cell_by_segment_number(&prevTC, prevSegm -> segmentNumber);
-
-		if(errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_find_table_cell_by_segment_number(&prevTC, prevSegm -> segmentNumber);
 	}
 
 	if (nextSegm != NULL) {
-		errCode = _find_table_cell_by_segment_number(&nextTC, nextSegm -> segmentNumber);
-
-		if(errCode != SUCCESSFUL_EXECUTION) {
-			return errCode;
-		}
+		_find_table_cell_by_segment_number(&nextTC, nextSegm -> segmentNumber);
 	}
 
-	errCode = _add_table_cell(prevTC, nextTC, szBlock);
-	if(errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_add_table_cell(prevTC, nextTC, szBlock);
 
-	errCode = _add_segment(prevSegm, nextSegm, ptr, szBlock);
-	if(errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_add_segment(prevSegm, nextSegm, ptr, szBlock);
 
-	errCode = _add_hard_segment(szBlock);
+	_add_hard_segment(szBlock);
 
 	curSegmentNumber++;
 
-	return errCode;
+	return SUCCESSFUL_EXECUTION;
 }
 
 
@@ -629,6 +622,8 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 		memcpy(rec -> data + offsetInSegm, (PA) pBuffer, szBuffer);
 
 		rec -> modification = 1;
+
+		rec -> lastAccessTime = getSysTimeInMilliseconds(); //<--------------
 	} else {
 		memcpy(tc -> physAddr + offsetInSegm, (PA) pBuffer, szBuffer);
 
@@ -638,6 +633,8 @@ int _write (VA ptr, void* pBuffer, size_t szBuffer)
 
 		if (rec != NULL) {
 			_load_segment_to_cash(&tc, &rec);
+
+			rec -> lastAccessTime = getSysTimeInMilliseconds(); //<-----------------
 		}
 	}
 
@@ -689,6 +686,8 @@ int _read (VA ptr, void* pBuffer, size_t szBuffer)
 
 	if (rec != NULL) {
 		memcpy((PA) pBuffer, rec -> data + offsetInSegm, szBuffer);
+
+		rec -> lastAccessTime = getSysTimeInMilliseconds(); //<------------------------------
 	} else {
 		memcpy((PA) pBuffer, tc -> physAddr + offsetInSegm, szBuffer);
 
@@ -696,6 +695,8 @@ int _read (VA ptr, void* pBuffer, size_t szBuffer)
 
 		if (rec != NULL) {
 			_load_segment_to_cash(&tc, &rec);
+
+			rec -> lastAccessTime = getSysTimeInMilliseconds(); //<------------------------
 		}
 	}
 
@@ -709,10 +710,7 @@ int _free_space_to_load_segment(segment** segm)
 	virtualAddressSpace* vas = &table.vas;
 	tableCell* tc = NULL;
 
-	int errCode = _find_table_cell_by_segment_number(&tc, (*segm) -> segmentNumber);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_table_cell_by_segment_number(&tc, (*segm) -> segmentNumber);
 
 	if (vas -> ramFree >= (*segm) -> segmentSize) {
 		return SUCCESSFUL_EXECUTION;
@@ -721,9 +719,9 @@ int _free_space_to_load_segment(segment** segm)
 
 		while(curTC != NULL) {
 			if (curTC -> presence == 1 && curTC -> segmentSize + vas -> ramFree >= (*segm) -> segmentSize) {
-				errCode = _load_segment_to_hard_drive(&curTC);
+				_load_segment_to_hard_drive(&curTC);
 
-				return errCode;
+				return SUCCESSFUL_EXECUTION;
 			}
 
 			curTC = curTC -> next;
@@ -733,10 +731,7 @@ int _free_space_to_load_segment(segment** segm)
 
 		while(curTC != NULL && vas -> ramFree < (*segm) -> segmentSize) {
 			if (curTC -> presence == 1) {
-				errCode = _load_segment_to_hard_drive(&curTC);
-				if (errCode != SUCCESSFUL_EXECUTION) {
-					return errCode;
-				}
+				_load_segment_to_hard_drive(&curTC);
 			}
 
 			curTC = curTC -> next;
@@ -752,12 +747,8 @@ int _load_segment_to_ram(tableCell** tc)	//моделируем загрузку
 {		
 	virtualAddressSpace* vas = &table.vas;
 	hardSegment* hardSegm = NULL;
-	int errCode;
 
-	errCode = _find_hard_segment_by_segment_number(&hardSegm, (*tc) -> segmentNumber);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_hard_segment_by_segment_number(&hardSegm, (*tc) -> segmentNumber);
 
 	(*tc) -> physAddr = (PA) malloc((*tc) -> segmentSize);
 	if ((*tc) -> physAddr == NULL) {
@@ -780,17 +771,10 @@ int _load_segment_to_hard_drive(tableCell** tc)	//моделируем загр�
 	virtualAddressSpace* vas = &table.vas;
 	hardSegment* hardSegm = NULL;
 	cashRecord* rec = NULL;
-	int errCode;
 
-	errCode = _find_cash_record_by_physical_address(&rec, (*tc) -> physAddr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_cash_record_by_physical_address(&rec, (*tc) -> physAddr);
 
-	errCode = _find_hard_segment_by_segment_number(&hardSegm, (*tc) -> segmentNumber);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_hard_segment_by_segment_number(&hardSegm, (*tc) -> segmentNumber);
 
 	if (rec != NULL && rec -> modification == 1) {
 		memcpy(hardSegm -> data, rec -> data, (*tc) -> segmentSize);
@@ -814,7 +798,6 @@ int _load_segment_to_hard_drive(tableCell** tc)	//моделируем загр�
 
 
 int _find_cash_record_to_load_segment(cashRecord** rec, tableCell* tc) {
-	int errCode;
 	(*rec) = csh.head;
 
 	if (tc -> segmentSize > maxRecordSize) {
@@ -830,9 +813,9 @@ int _find_cash_record_to_load_segment(cashRecord** rec, tableCell* tc) {
 		(*rec) = (*rec) -> next;
 	}
 
-	errCode = _load_segment_from_cash(rec);
+	_load_segment_from_cash(rec);
 
-	return errCode;
+	return SUCCESSFUL_EXECUTION;
 }
 
 
@@ -840,29 +823,16 @@ int _find_cash_record_to_load_segment(cashRecord** rec, tableCell* tc) {
 int _load_segment_from_cash(cashRecord** rec)
 {
 	tableCell* tc = NULL;
-	int errCode;
 
-	errCode = _find_cash_record_by_current_number(rec);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_earliest_access_cash_record(rec);
 
-	errCode = _find_table_cell_by_physical_address(&tc, (*rec) -> physAddr);
-	if (errCode != SUCCESSFUL_EXECUTION) {
-		return errCode;
-	}
+	_find_table_cell_by_physical_address(&tc, (*rec) -> physAddr);
 
 	if ((*rec) -> modification == 1) {
 		memcpy(tc -> physAddr, (*rec) -> data, tc -> segmentSize);
 
 		(*rec) -> reality = 0;
 		(*rec) -> modification = 0;
-	}
-
-	if (curRecordNumber == 5) {
-		curRecordNumber = 0;
-	} else {
-		curRecordNumber++;
 	}
 
 	return SUCCESSFUL_EXECUTION;
@@ -956,14 +926,24 @@ int _find_cash_record_by_physical_address(cashRecord** rec, PA physAddr)
 
 
 
-int _find_cash_record_by_current_number(cashRecord** rec)
+int _find_earliest_access_cash_record(cashRecord** earliestAccessRec)
 {
+	cashRecord* nextRec;
 	int recordNumber = 0;
-	
-	(*rec) = csh.head;
 
-	while (recordNumber < curRecordNumber) {
-		(*rec) = (*rec) -> next;
+	if (csh.head == NULL) {
+		return UNKNOW_ERROR;
+	}
+	
+	(*earliestAccessRec) = csh.head;
+	nextRec = csh.head -> next;
+
+	while (nextRec != NULL) {
+		if ((*earliestAccessRec) -> lastAccessTime < nextRec -> lastAccessTime) {
+			(*earliestAccessRec) = nextRec;
+		}
+
+		nextRec = nextRec -> next;
 		recordNumber++;
 	}
 

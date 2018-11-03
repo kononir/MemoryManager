@@ -56,7 +56,7 @@ typedef struct hardSegment				//сегмент на Ж/Д
 	struct hardSegment* prev;			//указатель на предыдущий сегмент
 } hardSegment;
 
-typedef struct hardDrive
+typedef struct hardDrive				//сегменты на Ж/Д
 {
 	hardSegment* head;					//указатель на первый сегмент
 	hardSegment* tail;					//указатель на последний сегмент
@@ -68,6 +68,7 @@ typedef struct cashRecord				//запись кэша
 	PA data;							//данные 
 	unsigned int modification;			//бит модификации данных
 	unsigned int reality;				//бит присутствия сегмента в кэше
+	long long lastAccessTime;			//время последнего обращения к записи
 	struct cashRecord* next;			//указатель на следующую запись
 	struct cashRecord* prev;			//указатель на предыдущую запись
 } cashRecord;
@@ -83,12 +84,13 @@ hardDrive drive;
 cash csh;
 
 static int curSegmentNumber = 0;
-static int curRecordNumber = 0;
 
 static const int ramSize = 8192;
 static const int hardSize = 65536;
 static const int maxRecordNumber = 5;
 static const int maxRecordSize = 10;
+
+static long long beginTime;
 
 /**
  	@func	_malloc	
@@ -190,7 +192,7 @@ int _find_segment_by_ptr(segment** segm, VA ptr);
 int _find_table_cell_by_segment_number(tableCell** tc, int segmentNumber);
 int _find_hard_segment_by_segment_number(hardSegment** hardSegm, int segmNumber);
 int _find_cash_record_by_physical_address(cashRecord** rec, PA physAddr);
-int _find_cash_record_by_current_number(cashRecord** rec);
+int _find_earliest_access_cash_record(cashRecord** rec);
 int _find_table_cell_by_physical_address(tableCell** tc, PA physAddr);
 
 int _free_table_cell(tableCell** tc);
