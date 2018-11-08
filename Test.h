@@ -5,6 +5,20 @@
 #define TEST_PASSED 0
 #define TEST_NOT_PASSED 1
 
+typedef struct block {
+	VA virtAdr;
+	struct block* next;
+	struct block* prev;
+} block;
+
+typedef struct blockList {
+	int length;
+	block* head;
+	block* tail;
+} blockList;
+
+blockList blcList;
+
 void prepare_vas_initialization(int n, int szPage);
 void prepare_segment_memory_allocation(VA* ptr, long szBlock);
 void prepare_table_cell_memory_allocation(long szBlock);
@@ -22,6 +36,18 @@ void prepare_full_free();
 void prepare_first_segment_free();
 void prepare_first_table_cell_free();
 void prepare_first_hard_segment_free();
+
+void stress_test();
+int add_random_size_block();
+void delete_random_block();
+long calculate_free_region_average_size();
+double calculate_taken_space_share();
+
+void new_list();
+void delete_list();
+void add_block_to_list(VA blcVirtAdr);
+void delete_block_from_list(block** blc);
+void find_block_in_list_by_number(block** blc, int blcNum);
 
 int test_init_invalid_number_of_pages(void),
 	test_init_invalid_page_size(void),

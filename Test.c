@@ -2,33 +2,16 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "SysTime.h"
-#include "Test.h"
-
-
-/*#define SIZE 65536
-
-struct list
-{
-	struct list* next;
-	struct list* priveos;
-	VA va;
-	int size;
-} *beginn = NULL;
-
-void stressTesting();
-void add(VA va, int size);
-void del(struct list* list);
-struct list* get(int number);
-void initial();*/
-
+#include "Test.h" 
 
 
 int main()
 {	
 	int testNumber, passedNumber = 0;
-	long long endTime, time;
+	long long endTime;
 
 	printf("\t\t\t\t Tests:\n");
 	
@@ -43,122 +26,18 @@ int main()
 
 	printf("\n%d tests passed!\n", passedNumber);
 
-	//stressTesting();
+	stress_test();
 
 	endTime = getSysTimeInMilliseconds();
 
-	time = endTime - beginTime;
-
-	printf("\nTime: %d milliseconds\n", time);
+	printf("\nTime: %Ld milliseconds\n", endTime - beginTime);
 
 	system("pause");
 	
 	return 0;
 }
 
-/*void stressTesting()
-{
-	int res = 0;
-	int size = 0;
-	int listSize = 0;
-	int tsize = 0;
-	int iterations = 0;
-	int iter;
-	VA va = NULL;
-	struct list *list = NULL;
 
-	srand(time(0));
-
-	for (iter = 0; iter < 10; iter++)
-	{
-		initial();
-		_init(1, SIZE);
-		res = 0;
-		size = 0;
-		listSize = 0;
-		iterations = 0;
-		do
-		{
-			if (size < SIZE * 0.7)
-			{
-				tsize = rand() % (int)((SIZE - size)*0.9);
-				res = _malloc(&va, tsize);
-				if (res == 0)
-				{
-					iterations++;
-					add(va, tsize);
-					listSize++;
-					size += tsize;
-				}
-				va = NULL;
-			}
-			else
-			{
-				list = get(rand() % listSize);
-				res = _free(list->va);
-				listSize--;
-				size -= list->size;
-				del(list);
-			}
-		} while (res == 0);
-		printf("\tAlloctated size: %d\tFree space size: %d\tTried to malloc size: %d\tIterations maked: %d\n", size, SIZE - size, tsize, iterations);
-	}
-}
-
-void add(VA va, int size)
-{
-	if (beginn->va < 0) beginn->va = va;
-	else
-	{
-		struct list *newOne = (struct list*) malloc(sizeof(struct list));
-		newOne->priveos = NULL;
-		newOne->next = beginn;
-		beginn->priveos = newOne;
-		newOne->va = va;
-		newOne->size = size;
-		beginn = newOne;
-	}
-}
-
-void del(struct list* list)
-{
-	if (list == beginn)
-	{
-		if (list->next != NULL) list->next->priveos = NULL;
-		else
-		{
-			list->va = (char*) - 1;
-		}
-		beginn = list->next;
-		free(list);
-	}
-	else
-	{
-		list->priveos->next = list->next;
-		if (list->next != NULL)	list->next->priveos = list->priveos;
-		free(list);
-	}
-}
-
-struct list* get(int number)
-{
-	struct list* list = beginn;
-	int i;
-	for (i = 0; i < number; i++)
-	{
-		list = list->next;
-	}
-	return list;
-}
-
-void initial()
-{
-	while (beginn != NULL) del(beginn);
-	beginn = (struct list*) malloc(sizeof(struct list));
-	beginn->next = NULL;
-	beginn->priveos = NULL;
-	beginn->va = (char*) - 1;
-}*/
 
 int test_init_invalid_number_of_pages(void) {
 	int n = -5, szPage = 3;
@@ -1016,5 +895,211 @@ void prepare_first_hard_segment_free() {
 
 
 void stress_test() {
+	long minVasSize = 0;
+	long maxVasSize = hardSize;
+
+	int curVasSizeIndex = 0;
+	int maxVasSizeIndex = 10;
+
+	int vasSizeMas[10] = {1000, 2500, 4096, 7000, 8192, 16384, 25000, 32768, 47500, 65536};
+
+	srand(time(NULL));
+
+	for (curVasSizeIndex; curVasSizeIndex < maxVasSizeIndex; curVasSizeIndex++) {
+		int curIteration = 0;
+		int maxIteration = 20;
+
+		long curVasSize = vasSizeMas[curVasSizeIndex];
+
+		printf("\t\t\t\tCurrent VAS size: %ld\n", curVasSize);
+
+		for (curIteration; curIteration < maxIteration; curIteration++) {
+			int logicTime = 0;
+			double takenSpaceShare;
+			long avgRegionSize;
+
+			int errCode;
+
+			_init(1, curVasSize);
+
+			new_list();
+
+			do {
+				double vasTaken = (double) (hardSize - table.vas.hardFree);
+				double vasSize = (double) table.vas.size;
+				double limit = 0.8;
+
+				if (vasTaken / vasSize >= limit) {
+					delete_random_block();
+				} else {
+					errCode = add_random_size_block();
+				}
+
+				logicTime++;
+			} while (errCode == SUCCESSFUL_EXECUTION);
+
+			takenSpaceShare = calculate_taken_space_share();
+			avgRegionSize = calculate_free_region_average_size();
+
+			/*
+				Здесь можно посчитать какие-нибудь ещё характеристики для дальнейшего их вывода
+			*/
+
+			printf("Logic time: %d\t Taken space share: %f\t Free region average size: %ld\n", logicTime, takenSpaceShare, avgRegionSize);
+
+			delete_list();
+		}
+	}
+}
+
+int add_random_size_block() {
+	VA blcVirtAdr = NULL;
+
+	long vasFree = table.vas.size - (hardSize - table.vas.hardFree);
+
+	long minSegmSize = 1;
+	long maxSegmSize = vasFree < ramSize ? vasFree: ramSize;
+	long curSegmSize = rand() % (maxSegmSize - minSegmSize + 1) + minSegmSize;
+
+	int errCode;
+
+	errCode = _malloc(&blcVirtAdr, curSegmSize);
+
+	add_block_to_list(blcVirtAdr);
+
+	return errCode;
+}
+
+void delete_random_block() {
+	block* blc = NULL;
+
+	int minBlcNum = 0;
+	int maxBlcNum = blcList.length - 1;
+	int curBlcNum = rand() % (maxBlcNum - minBlcNum + 1) + minBlcNum;
+
+	find_block_in_list_by_number(&blc, curBlcNum);
+
+	_free(blc -> virtAdr);
+
+	delete_block_from_list(&blc);
+}
+
+void new_list() {
+	blcList.length = 0;
+	blcList.head = NULL;
+	blcList.tail = NULL;
+}
+
+void delete_list() {
+	block* blc = blcList.head;
+
+	while (blc != NULL) {
+		block* nextBlc = blc -> next;
+
+		delete_block_from_list(&blc);
+
+		blc = nextBlc;
+	}
+
+	blcList.length = 0;
+}
+
+void add_block_to_list(VA blcVirtAdr) {
+	block* blc = (block*) malloc(sizeof(block));
+
+	blc -> virtAdr = blcVirtAdr;
+
+	if (blcList.head == NULL && blcList.tail == NULL) {
+		blc -> next = NULL;
+		blc -> prev = NULL;
+
+		blcList.head = blc;
+		blcList.tail = blc;
+	} else {
+		blc -> prev = blcList.tail;
+		blc -> next = NULL;
+
+		blcList.tail -> next = blc;
+
+		blcList.tail = blc;
+	}
+
+	blcList.length++;
+}
+
+void delete_block_from_list(block** blc) {
+	block* prevBlc = (*blc) -> prev;
+	block* nextBlc = (*blc) -> next;
 	
+	if (prevBlc != NULL && nextBlc != NULL) {
+		prevBlc -> next = nextBlc;
+		nextBlc -> prev = prevBlc;
+	} else if (prevBlc == NULL && nextBlc == NULL) {
+		blcList.head = NULL;
+		blcList.tail = NULL;
+	} else if (prevBlc == NULL) {
+		nextBlc -> prev = NULL;
+		blcList.head = nextBlc;
+	} else if (nextBlc == NULL) {
+		prevBlc -> next = NULL;
+		blcList.tail = prevBlc;
+	}
+
+	free((*blc));
+
+	(*blc) = NULL;
+
+	blcList.length--;
+}
+
+void find_block_in_list_by_number(block** blc, int blcNum) {
+	int curBlcNum = 0;
+	
+	(*blc) = blcList.head;
+
+	while (curBlcNum < blcNum) {
+		(*blc) = (*blc) -> next;
+		curBlcNum++;
+	}
+}
+
+long calculate_free_region_average_size() {
+	segment* curSegm = table.vas.head;
+
+	long vasFree, vasTaken;
+	int regionNum = 0;
+
+	if (curSegm -> offset > 0) {
+		regionNum++;
+	}
+
+	while (curSegm -> next != NULL) {
+		segment* nextSegm = curSegm -> next;
+
+		long beginOfSpace = curSegm -> segmentSize + curSegm -> offset;
+		long endOfSpace = nextSegm -> offset;
+		long space = endOfSpace - beginOfSpace;
+
+		if (space > 0) {
+			regionNum++;
+		}
+
+		curSegm = nextSegm;
+	}
+
+	if (curSegm -> offset + curSegm -> segmentSize < table.vas.size) {
+		regionNum++;
+	}
+
+	vasTaken = hardSize - table.vas.hardFree;
+	vasFree = table.vas.size - vasTaken;
+
+	return vasFree / regionNum;
+}
+
+double calculate_taken_space_share() {
+	double vasTaken = (double) (hardSize - table.vas.hardFree);
+	double vasSize = (double) table.vas.size;
+
+	return vasTaken / vasSize;
 }
